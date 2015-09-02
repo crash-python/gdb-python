@@ -103,6 +103,106 @@ blpy_iter (PyObject *self)
   return (PyObject *) block_iter_obj;
 }
 
+
+typedef struct {
+	PyObject_HEAD
+	struct dict_iterator iter;
+	int finished;
+	void *value;
+	PyObject *(*func)(void *);
+} DictIter;
+
+PyObject* DictIter_iter(PyObject *self);
+PyObject* DictIter_iter(PyObject *self)
+{
+  Py_INCREF(self);
+  return self;
+}
+
+static PyObject *obj_to_sym(void *val)
+{
+  PyObject *v = symbol_to_symbol_object ((struct symbol*)val);
+  return v;
+}
+
+PyObject* DictIter_iternext(PyObject *self);
+PyObject* DictIter_iternext(PyObject *self)
+{
+  DictIter *p = (DictIter *)self;
+  PyObject *v;
+  void *n;
+
+  if (p->finished == 1)
+    return NULL;
+
+  v = p->func((struct symbol*)p->value);
+
+  n = dict_iterator_next(&p->iter);
+
+  if (!n)
+    p->finished = 1;
+  else p->value = n;
+
+  return v;
+}
+
+static PyTypeObject DictIterType = {
+PyObject_HEAD_INIT(NULL)
+0,                         /*ob_size*/
+"gdb._DictIter",            /*tp_name*/
+sizeof(DictIter),       /*tp_basicsize*/
+0,                         /*tp_itemsize*/
+0,                         /*tp_dealloc*/
+0,                         /*tp_print*/
+0,                         /*tp_getattr*/
+0,                         /*tp_setattr*/
+0,                         /*tp_compare*/
+0,                         /*tp_repr*/
+0,                         /*tp_as_number*/
+0,                         /*tp_as_sequence*/
+0,                         /*tp_as_mapping*/
+0,                         /*tp_hash */
+0,                         /*tp_call*/
+0,                         /*tp_str*/
+0,                         /*tp_getattro*/
+0,                         /*tp_setattro*/
+0,                         /*tp_as_buffer*/
+Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER,
+"gdb dictionary iterator object.",           /* tp_doc */
+0,  /* tp_traverse */
+0,  /* tp_clear */
+0,  /* tp_richcompare */
+0,  /* tp_weaklistoffset */
+DictIter_iter,  /* tp_iter: __iter__() method */
+DictIter_iternext  /* tp_iternext: next() method */,
+.tp_new = PyType_GenericNew
+};                                                                                                                                                                 
+
+static PyObject *
+blpy_get_symbols(PyObject *self, void *closure)
+{
+  PyObject *tmp;
+  const struct block *block = NULL;
+  struct symbol *s;
+
+  BLPY_REQUIRE_VALID (self, block);
+
+  tmp = (PyObject*)PyObject_New(DictIter, &DictIterType);
+  if (!tmp) return NULL;
+
+  if (!PyObject_Init((PyObject *)tmp, &DictIterType)) {
+    Py_DECREF(tmp);
+    return NULL;
+  }
+
+  s = dict_iterator_first(block->dict, &((DictIter*)tmp)->iter);
+
+  ((DictIter*)tmp)->value = s;
+  ((DictIter*)tmp)->func = obj_to_sym;
+
+  return tmp;
+}
+
 static PyObject *
 blpy_get_start (PyObject *self, void *closure)
 {
@@ -438,6 +538,7 @@ gdbpy_initialize_blocks (void)
   if (PyType_Ready (&block_syms_iterator_object_type) < 0)
     return -1;
 
+  if (PyType_Ready(&DictIterType) < 0)  return -1;
   /* Register an objfile "free" callback so we can properly
      invalidate blocks when an object file is about to be
      deleted.  */
@@ -462,6 +563,7 @@ Return true if this block is valid, false if not." },
 };
 
 static PyGetSetDef block_object_getset[] = {
+  { "symbols", blpy_get_symbols, NULL, "Get symbols", NULL },
   { "start", blpy_get_start, NULL, "Start address of the block.", NULL },
   { "end", blpy_get_end, NULL, "End address of the block.", NULL },
   { "function", blpy_get_function, NULL,
