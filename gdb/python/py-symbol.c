@@ -377,27 +377,38 @@ gdbpy_lookup_symbol (PyObject *self, PyObject *args, PyObject *kw)
   PyObject *block_obj = NULL, *sym_obj, *bool_obj;
   const struct block *block = NULL;
 
-  if (!gdb_PyArg_ParseTupleAndKeywords (args, kw, "s|O!i", keywords, &name,
-					&block_object_type, &block_obj,
-					&domain))
+  if (!gdb_PyArg_ParseTupleAndKeywords (args, kw, "s|Oi", keywords, &name,
+					&block_obj, &domain))
     return NULL;
 
-  if (block_obj)
-    block = block_object_to_block (block_obj);
-  else
+  if (block_obj && block_obj != Py_None &&
+      !PyObject_TypeCheck (block_obj, &block_object_type))
     {
-      struct frame_info *selected_frame;
+      PyErr_Format (PyExc_TypeError,
+		    "argument 2 must be gdb.Block or None, not %s",
+		    block_obj->ob_type->tp_name);
+      return NULL;
+    }
 
-      TRY
+  if (block_obj != Py_None)
+    {
+      if (block_obj)
+	block = block_object_to_block (block_obj);
+      else
 	{
-	  selected_frame = get_selected_frame (_("No frame selected."));
-	  block = get_frame_block (selected_frame, NULL);
+	  struct frame_info *selected_frame;
+
+	  TRY
+	    {
+	      selected_frame = get_selected_frame (_("No frame selected."));
+	      block = get_frame_block (selected_frame, NULL);
+	    }
+	  CATCH (except, RETURN_MASK_ALL)
+	    {
+	      GDB_PY_HANDLE_EXCEPTION (except);
+	    }
+	  END_CATCH
 	}
-      CATCH (except, RETURN_MASK_ALL)
-	{
-	  GDB_PY_HANDLE_EXCEPTION (except);
-	}
-      END_CATCH
     }
 
   TRY
