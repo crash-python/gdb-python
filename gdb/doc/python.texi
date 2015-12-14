@@ -4428,8 +4428,9 @@ arguments.
 @var{name} is the name of the symbol.  It must be a string.  The
 optional @var{block} argument restricts the search to symbols visible
 in that @var{block}.  The @var{block} argument must be a
-@code{gdb.Block} object.  If omitted, the block for the current frame
-is used.  The optional @var{domain} argument restricts
+@code{gdb.Block} object or @code{None}.  If omitted, the block for the
+current frame is used.  If @code{None}, no block will be used to resolve
+the symbol.  The optional @var{domain} argument restricts
 the search to the domain type.  The @var{domain} argument must be a
 domain constant defined in the @code{gdb} module and described later
 in this chapter.
