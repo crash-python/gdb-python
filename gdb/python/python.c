@@ -1800,6 +1800,7 @@ message == an error message without a stack will be printed."),
       || gdbpy_initialize_frames () < 0
       || gdbpy_initialize_commands () < 0
       || gdbpy_initialize_symbols () < 0
+      || gdbpy_initialize_minsymbols () < 0
       || gdbpy_initialize_symtabs () < 0
       || gdbpy_initialize_blocks () < 0
       || gdbpy_initialize_functions () < 0
@@ -2024,6 +2025,10 @@ a boolean indicating if name is a field of the current implied argument\n\
   { "lookup_global_symbol", (PyCFunction) gdbpy_lookup_global_symbol,
     METH_VARARGS | METH_KEYWORDS,
     "lookup_global_symbol (name [, domain]) -> symbol\n\
+Return the symbol corresponding to the given name (or None)." },
+{ "lookup_minimal_symbol", (PyCFunction) gdbpy_lookup_minimal_symbol,
+    METH_VARARGS | METH_KEYWORDS,
+    "lookup_minimal_symbol (name, [sfile, [objfile]]) -> minsym\n\
 Return the symbol corresponding to the given name (or None)." },
 
   { "lookup_objfile", (PyCFunction) gdbpy_lookup_objfile,
