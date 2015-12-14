@@ -158,6 +158,7 @@ optional arguments while skipping others.  Example:
 * Frames In Python::            Accessing inferior stack frames from Python.
 * Blocks In Python::            Accessing blocks from Python.
 * Symbols In Python::           Python representation of symbols.
+* Minimal Symbols In Python::   Python representation of minimal symbols.
 * Symbol Tables In Python::     Python representation of symbol tables.
 * Line Tables In Python::       Python representation of line tables.
 * Breakpoints In Python::       Manipulating breakpoints using Python.
@@ -4642,6 +4643,144 @@ The value does not actually exist in the program.
 @vindex SYMBOL_LOC_COMPUTED
 @item gdb.SYMBOL_LOC_COMPUTED
 The value's address is a computed location.
+@end vtable
+
+@node Minimal Symbols In Python
+@subsubsection Python representation of Minimal Symbols.
+
+@cindex minsymbols in python
+@tindex gdb.MinSymbol
+
+@value{GDBN} represents every variable, function and type as an
+entry in a symbol table.  @xref{Symbols, ,Examining the Symbol Table}.
+Typical symbols like functions, variables, etc are represented by
+gdb.Symbol objects in Python.  Some symbols are defined with less
+information associated with them, like linker script variables
+or assembly labels.  Python represents these minimal symbols in @value{GDBN}
+with the @code{gdb.MinSymbol} object.
+
+The following minimal symbol-related functions are available in the @code{gdb}
+module:
+
+@findex gdb.lookup_minimal_symbol
+@defun gdb.lookup_minimal_symbol (name @r{[}, sfile@r{]}, objfile@r{[})
+This function searches for a minimal symbol by name.
+The search scope can be restricted by the sfile and objfile arguments.
+
+@var{name} is the name of the minimal symbol.  It must be a string.
+The optional @var{sfile} argument restricts the search to the source file
+in which the minimal symbol was defined.
+The @var{sfile} argument must be a string.  The optional @var{objfile}
+restricts the search to the objfile that contains the minimal symbol.  The @var{objfile} argument must be a @code{gdb.Objfile} object.
+
+The result is a @code{gdb.MinSymbol} object or @code{None} if the symbol
+is not found.
+@end defun
+
+A @code{gdb.MinSymbol} object has the following attributes:
+
+@defvar MinSymbol.name
+The name of the symbol as a string.  This attribute is not writable.
+@end defvar
+
+@defvar MinSymbol.linkage_name
+The name of the symbol, as used by the linker (i.e., may be mangled).
+This attribute is not writable.
+@end defvar
+
+@defvar MinSymbol.print_name
+The name of the symbol in a form suitable for output.  This is either
+@code{name} or @code{linkage_name}, depending on whether the user
+asked @value{GDBN} to display demangled or mangled names.
+@end defvar
+
+@defvar MinSymbol.filename
+The file name of the source file where the minimal symbol is defined.  This
+value may represent filenames used internally by the compiler rather
+than a viewable/editable source file.
+@end defvar
+
+@defvar MinSymbol.section
+The name of the binary section containing this minimal symbol.
+@end defvar
+
+@defvar MinSymbol.is_code
+@code{True} if the minimal symbol is a function or a method.
+@end defvar
+
+@defvar MinSymbol.is_data
+@code{True} if the symbol is a variable or other data.
+@end defvar
+
+A @code{gdb.MinSymbol} object has the following methods:
+
+@defun MinSymbol.is_valid ()
+Returns @code{True} if the @code{gdb.MinSymbol} object is valid,
+@code{False} if not.  A @code{gdb.MinSymbol} object can become invalid if
+the symbol it refers to does not exist in @value{GDBN} any longer.
+All other @code{gdb.MinSymbol} methods will throw an exception if it is
+invalid at the time the method is called.
+@end defun
+
+@defun MinSymbol.value ()
+Compute the value of the minimal symbol, as a @code{gdb.Value}.  The value
+returned represents the address of the minimal symbol.  Since minimal symbols
+represent objects without rich type information, the @code{gdb.Type}
+associated with the @code{gdb.Value} objects will be limited to whether
+the minimal symbol describes executable code or data.
+@end defun
+
+The available types for @code{gdb.MinSymbol} are represented
+as constants in the @code{gdb} module. They are distinctly separate from the
+types represented by the @code{gdb.Type} object.
+
+@vtable @code
+@vindex MINSYMBOL_TYPE_UNKNOWN
+@item gdb.MINSYMBOL_TYPE_UNKNOWN
+This is used when the type has not been discovered or none of the
+following types apply.  This usually indicates an error either
+in the symbol information or in @value{GDBN}'s handling of symbols.
+
+@vindex MINSYMBOL_TYPE_TEXT
+@item gdb.MINSYMBOL_TYPE_TEXT
+This type represents executable code.
+
+@vindex MINSYMBOL_TYPE_TEXT_GNU_IFUNC
+@item gdb.MINSYMBOL_TYPE_TEXT_GNU_IFUNC
+This type represents executable code that returns the address
+of executable code.
+
+@vindex MINSYMBOL_TYPE_SLOT_GOT_PLT
+@item gdb.MINSYMBOL_TYPE_SLOT_GOT_PLT
+This type represents GOT for .plt sections.
+
+@vindex MINSYMBOL_TYPE_DATA
+@item gdb.MINSYMBOL_TYPE_DATA
+This type represents generally initialized (nonzero) data.
+
+@vindex MINSYMBOL_TYPE_BSS
+@item gdb.MINSYMBOL_TYPE_BSS
+This type represents generally uninitialized (zeroed) data.
+
+@vindex MINSYMBOL_TYPE_ABS
+@item gdb.MINSYMBOL_TYPE_ABS
+This type represents generally absolute (non-relocatable) data.
+
+@vindex MINSYMBOL_TYPE_SOLIB_TRAMPOLINE
+@item gdb.MINSYMBOL_TYPE_SOLIB_TRAMPOLINE
+This type represents the start address of a shared library trampoline entry.
+
+@vindex MINSYMBOL_TYPE_FILE_TEXT
+@item gdb.MINSYMBOL_TYPE_FILE_TEXT
+This type represents the static version of gdb.MINSYMBOL_TYPE_TEXT.
+
+@vindex MINSYMBOL_TYPE_FILE_DATA
+@item gdb.MINSYMBOL_TYPE_FILE_DATA
+This type represents the static version of gdb.MINSYMBOL_TYPE_DATA.
+
+@vindex MINSYMBOL_TYPE_FILE_BSS
+@item gdb.MINSYMBOL_TYPE_FILE_BSS
+This type represents the static version of gdb.MINSYMBOL_TYPE_BSS.
 @end vtable
 
 @node Symbol Tables In Python
