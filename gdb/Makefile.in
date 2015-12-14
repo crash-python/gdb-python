@@ -455,6 +455,7 @@ SUBDIR_PYTHON_OBS = \
 	py-infthread.o \
 	py-lazy-string.o \
 	py-linetable.o \
+	py-minsymbol.o \
 	py-newobjfileevent.o \
 	py-objfile.o \
 	py-param.o \
@@ -498,6 +499,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-infthread.c \
 	python/py-lazy-string.c \
 	python/py-linetable.c \
+	python/py-minsymbol.c \
 	python/py-newobjfileevent.c \
 	python/py-objfile.c \
 	python/py-param.c \
