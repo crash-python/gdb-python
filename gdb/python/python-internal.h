@@ -248,6 +248,8 @@ extern PyTypeObject block_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF("block_object");
 extern PyTypeObject symbol_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("symbol_object");
+extern PyTypeObject minsym_object_type;
+     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("minsym_object");
 extern PyTypeObject event_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("event_object");
 extern PyTypeObject stop_event_object_type
@@ -369,6 +371,8 @@ PyObject *gdbpy_frame_stop_reason_string (PyObject *, PyObject *);
 PyObject *gdbpy_lookup_symbol (PyObject *self, PyObject *args, PyObject *kw);
 PyObject *gdbpy_lookup_global_symbol (PyObject *self, PyObject *args,
 				      PyObject *kw);
+PyObject *gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args,
+				       PyObject *kw);
 PyObject *gdbpy_newest_frame (PyObject *self, PyObject *args);
 PyObject *gdbpy_selected_frame (PyObject *self, PyObject *args);
 PyObject *gdbpy_block_for_pc (PyObject *self, PyObject *args);
@@ -410,6 +414,7 @@ PyObject *objfpy_get_frame_filters (PyObject *, void *);
 PyObject *objfpy_get_frame_unwinders (PyObject *, void *);
 PyObject *objfpy_get_xmethods (PyObject *, void *);
 PyObject *gdbpy_lookup_objfile (PyObject *self, PyObject *args, PyObject *kw);
+struct objfile *objfpy_object_to_objfile(PyObject *self);
 
 PyObject *gdbarch_to_arch_object (struct gdbarch *gdbarch);
 
@@ -441,6 +446,8 @@ int gdbpy_initialize_symtabs (void)
 int gdbpy_initialize_commands (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_symbols (void)
+  CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
+int gdbpy_initialize_minsymbols (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_symtabs (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
