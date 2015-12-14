@@ -43,6 +43,11 @@ int func (int arg)
   return arg;
 }
 
+static int staticfunc (int arg)
+{
+  return 0;
+}
+
 struct simple_struct
 {
   int a;
@@ -60,6 +65,8 @@ int main (int argc, char *argv[])
   enum tag t = one;
 
   result = func (42);
+
+  result = staticfunc (42);
 
 #ifdef __cplusplus
   sclass.seti (42);
