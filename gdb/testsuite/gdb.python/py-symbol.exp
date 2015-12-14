@@ -48,6 +48,14 @@ gdb_test "python print (gdb.lookup_global_symbol('qq').needs_frame)" \
     "False" \
     "print whether qq needs a frame"
 
+# Test looking up a static symbol that doesn't require a frame
+gdb_test_no_output "python staticfunc = gdb.lookup_symbol(\"staticfunc\", None)" ""
+gdb_test "python print staticfunc\[0\]" "staticfunc" "Test staticfunc lookup"
+
+gdb_test_no_output "python staticfunc = gdb.lookup_symbol(\"does_not_exist\", None)" ""
+gdb_test "python print staticfunc\[0\]" "None" "Test missing symbol lookup"
+
+
 
 if ![runto_main] then {
     fail "can't run to main"
