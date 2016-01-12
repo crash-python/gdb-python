@@ -528,8 +528,9 @@ for its internal bookkeeping of the inferior's values, and for
 fetching values when necessary.
 
 Inferior values that are simple scalars can be used directly in
-Python expressions that are valid for the value's data type.  Here's
-an example for an integer or floating-point value @code{some_val}:
+Python expressions that are valid for the value's data type.  Signedness
+is be preserved from the value. Here's an example for an integer or
+floating-point value @code{some_val}:
 
 @smallexample
 bar = some_val + 2
@@ -548,6 +549,14 @@ as follows:
 
 @smallexample
 val3 = val1 + val2
+@end smallexample
+
+@noindent
+In C-like languages, one can convert the target address of pointer types
+for use in Python as unsigned long values as follows:
+
+@smallexample
+val = long(some_val)
 @end smallexample
 
 @noindent

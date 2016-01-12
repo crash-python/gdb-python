@@ -1441,7 +1441,11 @@ valpy_int (PyObject *self)
     }
   END_CATCH
 
-  return gdb_py_object_from_longest (l);
+  if (TYPE_UNSIGNED (type) ||
+      TYPE_CODE (type) == TYPE_CODE_PTR)
+    return gdb_py_object_from_ulongest (l);
+  else
+    return gdb_py_object_from_longest (l);
 }
 #endif
 
@@ -1469,7 +1473,8 @@ valpy_long (PyObject *self)
     }
   END_CATCH
 
-  if (TYPE_UNSIGNED (type))
+  if (TYPE_UNSIGNED (type) ||
+      TYPE_CODE (type) == TYPE_CODE_PTR)
     return gdb_py_long_from_ulongest (l);
   else
     return gdb_py_long_from_longest (l);

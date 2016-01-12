@@ -121,6 +121,29 @@ proc test_value_numeric_ops {} {
   gdb_test_no_output "python evalue = gdb.history (0)"
   gdb_test "python print (int (evalue))" "2"
 
+  # Implicit and explicit conversions to long
+  gdb_test "print (unsigned long long) -1" ".*" ""
+  gdb_test_no_output "python x = gdb.history (0)" ""
+  gdb_test "python print x" "18446744073709551615" "print unsigned long long value"
+  gdb_test "python print long(x)" "18446744073709551615" "print unsigned long long value as Python long"
+
+  gdb_test "print (long long) -1" ".*" ""
+  gdb_test_no_output "python x = gdb.history (0)" ""
+  gdb_test "python print x" "-1" "print long long value"
+  gdb_test "python print long(x)" "-1" "print long long value as Python long"
+
+  set pointer_size [get_sizeof "char *" 99]
+
+  gdb_test "print (void *) -1" ".*" ""
+  gdb_test_no_output "python c = gdb.history (0)" ""
+  if {$pointer_size == 8} {
+    gdb_test "python print c" "0xffffffffffffffff" "print pointer"
+    gdb_test "python print long(c)" "18446744073709551615" "print pointer as Python long"
+  } elseif {$pointer_size == 4} {
+    gdb_test "python print c" "0xffffffff" "print pointer"
+    gdb_test "python print long(c)" "4294967295" "print pointer as Python long"
+  }
+
   # Test pointer arithmethic
 
   # First, obtain the pointers
