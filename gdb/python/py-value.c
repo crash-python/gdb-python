@@ -1475,6 +1475,7 @@ valpy_int (PyObject *self)
 {
   struct value *value = ((value_object *) self)->value;
   struct type *type = value_type (value);
+  int is_unsigned = 0;
   LONGEST l = 0;
 
   TRY
@@ -1482,6 +1483,9 @@ valpy_int (PyObject *self)
       if (!is_integral_type (type))
 	error (_("Cannot convert value to int."));
 
+      if (TYPE_CODE (type) == TYPE_CODE_PTR ||
+	  TYPE_UNSIGNED (type))
+	is_unsigned = 1;
       l = value_as_long (value);
     }
   CATCH (except, RETURN_MASK_ALL)
@@ -1490,6 +1494,8 @@ valpy_int (PyObject *self)
     }
   END_CATCH
 
+  if (is_unsigned)
+    return gdb_py_object_from_ulongest ((ULONGEST)l);
   return gdb_py_object_from_longest (l);
 }
 #endif
@@ -1500,6 +1506,7 @@ valpy_long (PyObject *self)
 {
   struct value *value = ((value_object *) self)->value;
   struct type *type = value_type (value);
+  int is_unsigned = 0;
   LONGEST l = 0;
 
   TRY
@@ -1510,6 +1517,9 @@ valpy_long (PyObject *self)
 	  && TYPE_CODE (type) != TYPE_CODE_PTR)
 	error (_("Cannot convert value to long."));
 
+      if (TYPE_CODE (type) == TYPE_CODE_PTR ||
+	  TYPE_UNSIGNED (type))
+	is_unsigned = 1;
       l = value_as_long (value);
     }
   CATCH (except, RETURN_MASK_ALL)
@@ -1518,6 +1528,8 @@ valpy_long (PyObject *self)
     }
   END_CATCH
 
+  if (is_unsigned)
+    return gdb_py_long_from_ulongest ((ULONGEST)l);
   return gdb_py_long_from_longest (l);
 }
 
