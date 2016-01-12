@@ -3708,6 +3708,9 @@ static bool
 check_types_equal (struct type *type1, struct type *type2,
 		   std::vector<type_equality_entry> *worklist)
 {
+  if (type1 == type2)
+    return 1;
+
   type1 = check_typedef (type1);
   type2 = check_typedef (type2);
 
