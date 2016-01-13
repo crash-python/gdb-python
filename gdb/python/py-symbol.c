@@ -74,8 +74,7 @@ sympy_get_type (PyObject *self, void *closure)
 
   if (SYMBOL_TYPE (symbol) == NULL)
     {
-      Py_INCREF (Py_None);
-      return Py_None;
+      Py_RETURN_NONE;
     }
 
   return type_to_type_object (SYMBOL_TYPE (symbol));
@@ -469,8 +468,7 @@ gdbpy_lookup_global_symbol (PyObject *self, PyObject *args, PyObject *kw)
     }
   else
     {
-      sym_obj = Py_None;
-      Py_INCREF (Py_None);
+      Py_RETURN_NONE;
     }
 
   return sym_obj;
