@@ -1,0 +1,59 @@
+# Copyright (C) 2010-2015 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This file is part of the GDB testsuite.  It tests the mechanism
+# exposing values to Python.
+
+load_lib gdb-python.exp
+
+#set verbose 10
+
+standard_testfile
+
+if {[prepare_for_testing $testfile.exp $testfile $srcfile debug]} {
+    return -1
+}
+
+# Skip all tests if Python scripting is not enabled.
+if { [skip_python_tests] } { continue }
+
+if ![runto_main] then {
+    fail "Can't run to main"
+    return 0
+}
+
+#gdb_py_test_silent_cmd
+gdb_py_test_silent_cmd "python regs = gdb.selected_thread().registers"  "Keep a set of registers" 1
+
+# Hopefully an architecture-independent way of finding a GPR to test; Reg #0
+gdb_py_test_silent_cmd "python gpr0 = sorted(regs.values(), key=lambda x: x.regnum)\[0\]" "saving the name of GPR#0" 1
+gdb_test "python print gpr0" "<gdb.Register object at.*" "Test to get a register"
+gdb_py_test_silent_cmd "python gpr0.value = 1" "Test assignment to GPR" 1
+gdb_test_multiple "python gpr0.value = \"oh hai\"" "Test assignment to GPR of invalid type" {
+    -re "Traceback.*TypeError:.*$gdb_prompt $" {
+	pass "1"
+    }
+}
+
+gdb_test_multiple "python regs\[\'foo\'\] = 0" "Testing that register dict is static (writing)" {
+    -re "Traceback.*TypeError:.*$gdb_prompt $" {
+	pass "1"
+    }
+}
+gdb_test_multiple "python print regs\[\'foo\'\]" "Testing that register dict is static (reading)" {
+    -re "Traceback.*KeyError:.*$gdb_prompt $" {
+	pass "1"
+    }
+}
