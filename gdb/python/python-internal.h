@@ -311,8 +311,17 @@ typedef struct
   /* The thread we represent.  */
   struct thread_info *thread;
 
+  /* Regcache */
+  PyObject *regcache;
+
   /* The Inferior object to which this thread belongs.  */
   PyObject *inf_obj;
+
+  /*
+   * Registers associated with this thread.  Python code may hold outstanding
+   * references and we need to be able to mark them invalid.
+   */
+  PyObject *register_objs;
 } thread_object;
 
 extern struct cmd_list_element *set_python_list;
@@ -520,6 +529,8 @@ int gdbpy_initialize_xmethods (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_unwind (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
+int gdbpy_initialize_register (void)
+  CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 
 /* Called before entering the Python interpreter to install the
    current language and architecture to be used for Python values.
@@ -650,4 +661,6 @@ struct varobj;
 struct varobj_iter *py_varobj_get_iterator (struct varobj *var,
 					    PyObject *printer);
 
+PyObject *register_to_register_object (thread_object *thread_obj, int reg);
+void del_thread_registers (thread_object *thread);
 #endif /* GDB_PYTHON_INTERNAL_H */

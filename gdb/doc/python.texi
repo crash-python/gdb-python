@@ -162,6 +162,7 @@ optional arguments while skipping others.  Example:
 * Symbols In Python::           Python representation of symbols.
 * Minimal Symbols In Python::   Python representation of minimal symbols.
 * Symbol Tables In Python::     Python representation of symbol tables.
+* Registers in Python::		Python representation of CPU registers.
 * Line Tables In Python::       Python representation of line tables.
 * Breakpoints In Python::       Manipulating breakpoints using Python.
 * Finish Breakpoints in Python:: Setting Breakpoints on function return
@@ -3050,6 +3051,13 @@ The inferior this thread belongs to.  This attribute is represented as
 a @code{gdb.Inferior} object.  This attribute is not writable.
 @end defvar
 
+@defvar InferiorThread.registers
+Return a dictionary of registers associated with this thread.  The dictionary
+is not writable but the values of the registers it contains may be writable
+depending on the target.  Writing to the register values will update them
+similar to using the @code{set $register} @value{GDBN} command.
+@end defvar
+
 A @code{gdb.InferiorThread} object has the following methods:
 
 @defun InferiorThread.is_valid ()
@@ -4784,6 +4792,45 @@ This type represents the static version of gdb.MINSYMBOL_TYPE_DATA.
 @item gdb.MINSYMBOL_TYPE_FILE_BSS
 This type represents the static version of gdb.MINSYMBOL_TYPE_BSS.
 @end vtable
+
+@node Registers in Python
+@subsubsection Python representation of CPU registers
+
+@cindex registers in python
+@tindex gdb.Register
+
+@value{GDBN} represents CPU registers associated with threads as a @code{gdb.Register} object in Python.
+
+A @code{gdb.Register} object has the following attributes:
+
+@defvar Register.name
+The architecture-defined name for the register.  This attribute is not writable.
+@end defvar
+
+@defvar Register.value
+The value that this register contains.  This attribute is writable.  The value
+assigned to the register must be of sufficient size and compatible with the
+@code{Register.type} or a TypeError exception will be raised.  Integers, longs,
+bytearray objects, and @code{gdb.Value} objects are accepted.  @value{GDBN}
+will attempt to automatically cast a supplied @code{gdb.Value} object to the
+register type.  Providing None marks the register as containing and
+undefined value.
+@end defvar
+
+@defvar Register.size
+The size of the register in bytes.  Most general purpose registers will
+have a size that matches the size of a long integer on the target
+architecture.  Special-purpose registers can have arbitary lengths.  This
+attribute is not writable.
+@end defvar
+
+@defvar Register.regnum
+The architecture-dependent register number.  This attribute is not writable.
+@end defvar
+
+@defvar Register.type
+The type that this register represents.  This attribute is not writable.
+@end defvar
 
 @node Symbol Tables In Python
 @subsubsection Symbol table representation in Python.

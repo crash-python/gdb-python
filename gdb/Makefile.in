@@ -464,6 +464,7 @@ SUBDIR_PYTHON_OBS = \
 	py-record.o \
 	py-record-btrace.o \
 	py-record-full.o \
+	py-register.o \
 	py-signalevent.o \
 	py-stopevent.o \
 	py-symbol.o \
@@ -508,6 +509,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-record.c \
 	python/py-record-btrace.c \
 	python/py-record-full.c \
+	python/py-register.c \
 	python/py-signalevent.c \
 	python/py-stopevent.c \
 	python/py-symbol.c \
