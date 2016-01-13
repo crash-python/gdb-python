@@ -47,6 +47,7 @@ create_thread_object (struct thread_info *tp)
 
   thread_obj->thread = tp;
   thread_obj->inf_obj = find_inferior_object (ptid_get_pid (tp->ptid));
+  thread_obj->register_objs = NULL;
 
   return thread_obj;
 }
@@ -252,6 +253,54 @@ thpy_is_valid (PyObject *self, PyObject *args)
   Py_RETURN_TRUE;
 }
 
+
+static PyObject *
+thpy_get_registers (PyObject *self, void *closure)
+{
+  thread_object *thread_obj = (thread_object *) self;
+  PyObject *d = NULL;
+
+  THPY_REQUIRE_VALID (thread_obj);
+
+  TRY
+    {
+      struct gdbarch *gdbarch;
+      int i, numregs;
+      gdbarch = target_gdbarch ();
+      numregs = gdbarch_num_regs (gdbarch);
+
+      d = PyDict_New();
+      for (i = 0; i < numregs; i++)
+	{
+	  PyObject *reg;
+	  const char *name = gdbarch_register_name (gdbarch, i);
+
+	  if (!name || !*name)
+		  continue;
+
+	  reg = register_to_register_object (thread_obj, i);
+	  if (!reg) {
+	    Py_DECREF (d);
+	    return NULL;
+	  }
+
+	  if (PyDict_SetItemString (d, name, reg)) {
+	    Py_DECREF (reg);
+	    Py_DECREF (d);
+	    return NULL;
+	  }
+	}
+      }
+    CATCH (except, RETURN_MASK_ALL)
+      {
+	GDB_PY_HANDLE_EXCEPTION (except);
+      }
+    END_CATCH
+
+    /* Does this leak d? */
+    return PyDictProxy_New(d);
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -316,6 +365,8 @@ static gdb_PyGetSetDef thread_object_getset[] =
     NULL },
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
+  { "registers", thpy_get_registers, NULL, "Registers for this thread.",
+    NULL },
 
   { NULL }
 };
