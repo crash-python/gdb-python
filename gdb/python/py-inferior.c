@@ -381,6 +381,8 @@ delete_thread_object (struct thread_info *tp, int ignore)
   *entry = (*entry)->next;
   inf_obj->nthreads--;
 
+  del_thread_registers (tmp->thread_obj);
+
   Py_DECREF (tmp->thread_obj);
   Py_DECREF (inf_obj);
   xfree (tmp);
