@@ -408,6 +408,7 @@ SUBDIR_PYTHON_OBS = \
 	py-param.o \
 	py-prettyprint.o \
 	py-progspace.o \
+	py-register.o \
 	py-signalevent.o \
 	py-stopevent.o \
 	py-symbol.o \
@@ -449,6 +450,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-param.c \
 	python/py-prettyprint.c \
 	python/py-progspace.c \
+	python/py-register.c \
 	python/py-signalevent.c \
 	python/py-stopevent.c \
 	python/py-symbol.c \
@@ -2698,6 +2700,10 @@ py-prettyprint.o: $(srcdir)/python/py-prettyprint.c
 
 py-progspace.o: $(srcdir)/python/py-progspace.c
 	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-progspace.c
+	$(POSTCOMPILE)
+
+py-register.o: $(srcdir)/python/py-register.c
+	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-register.c
 	$(POSTCOMPILE)
 
 py-signalevent.o: $(srcdir)/python/py-signalevent.c
