@@ -413,6 +413,7 @@ SUBDIR_PYTHON_OBS = \
 	py-stopevent.o \
 	py-symbol.o \
 	py-symtab.o \
+	py-target.o \
 	py-threadevent.o \
 	py-type.o \
 	py-unwind.o \
@@ -2720,6 +2721,10 @@ py-symbol.o: $(srcdir)/python/py-symbol.c
 
 py-symtab.o: $(srcdir)/python/py-symtab.c
 	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-symtab.c
+	$(POSTCOMPILE)
+
+py-target.o: $(srcdir)/python/py-target.c
+	$(COMPILE) $(PYTHON_CFLAGS) $(srcdir)/python/py-target.c
 	$(POSTCOMPILE)
 
 py-threadevent.o: $(srcdir)/python/py-threadevent.c
