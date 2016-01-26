@@ -470,6 +470,7 @@ SUBDIR_PYTHON_OBS = \
 	py-stopevent.o \
 	py-symbol.o \
 	py-symtab.o \
+	py-target.o \
 	py-threadevent.o \
 	py-type.o \
 	py-unwind.o \
