@@ -44,6 +44,9 @@ gdb_test "python print (gdb.lookup_global_symbol('qq').line)" "$qq_line" \
 gdb_test "python print (gdb.lookup_global_symbol('qq').value())" "72" \
     "print value of qq"
 
+gdb_test "python print (gdb.lookup_global_symbol('qq').section)" ".data" \
+    "print section of qq"
+
 gdb_test "python print (gdb.lookup_global_symbol('qq').needs_frame)" \
     "False" \
     "print whether qq needs a frame"
@@ -88,6 +91,7 @@ gdb_test "python print (func.name)" "func" "test func.name"
 gdb_test "python print (func.print_name)" "func" "test func.print_name"
 gdb_test "python print (func.linkage_name)" "func" "test func.linkage_name"
 gdb_test "python print (func.addr_class == gdb.SYMBOL_LOC_BLOCK)" "True" "test func.addr_class"
+gdb_test "python print (func.section)" ".text" "test func.section"
 
 gdb_breakpoint [gdb_get_line_number "Break at end."]
 gdb_continue_to_breakpoint "Break at end for variable a" ".*Break at end.*"
@@ -110,6 +114,8 @@ gdb_test "python print (a\[0\].value(frame))" "0" \
     "print value of a"
 gdb_test "python print (a\[0\].needs_frame)" "True" \
     "print whether a needs a frame"
+gdb_test "python print (a\[0\].section)" "None" \
+    "print section of a"
 
 # Test is_constant attribute
 gdb_py_test_silent_cmd "python t = gdb.lookup_symbol(\"one\")" "Get constant t" 0
@@ -123,6 +129,9 @@ gdb_test "python print (t\[0\].addr_class == gdb.SYMBOL_LOC_CONST)" "True" "test
 
 # Test type attribute.
 gdb_test "python print (t\[0\].type)" "enum tag" "get type"
+
+# Test section attribute
+gdb_test "python print (t\[0\].section)" "None" "Test t.section"
 
 # Test symtab attribute.
 if { [is_remote host] } {
