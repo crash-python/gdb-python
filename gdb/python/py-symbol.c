@@ -239,6 +239,27 @@ sympy_is_valid (PyObject *self, PyObject *args)
   Py_RETURN_TRUE;
 }
 
+static PyObject *
+sympy_section (PyObject *self, void *closure)
+{
+  struct symbol *symbol = NULL;
+  PyObject *section_obj;
+  struct obj_section *section;
+  const char *name;
+
+  SYMPY_REQUIRE_VALID (self, symbol);
+
+  section = SYMBOL_OBJ_SECTION (symbol_objfile(symbol), symbol);
+  if (section) {
+    name = bfd_section_name (symbol_objfile(objfile)->obfd,
+			     section->the_bfd_section);
+    if (name)
+      return PyString_FromString (name);
+  }
+
+  Py_RETURN_NONE;
+}
+
 /* Implementation of gdb.Symbol.value (self[, frame]) -> gdb.Value.  Returns
    the value of the symbol, or an error in various circumstances.  */
 
@@ -597,6 +618,8 @@ to display demangled or mangled names.", NULL },
     "True if the symbol requires a frame for evaluation." },
   { "line", sympy_line, NULL,
     "The source line number at which the symbol was defined." },
+  { "section", sympy_section, NULL,
+    "Section of executable where symbol resides." },
   { NULL }  /* Sentinel */
 };
 
