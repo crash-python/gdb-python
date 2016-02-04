@@ -63,6 +63,9 @@ extern PyTypeObject target_object_type
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
+#define ENTRY() {}
+#define EXIT() {}
+
 /* Large spacing between sections during development for clear divisions */
 
 /*****************************************************************************
@@ -94,7 +97,6 @@ static target_object * target_ops_to_target_obj(struct target_ops *ops)
 	    ops = ops->beneath;					\
 	    return ops->op(ops, ##args);			\
 	}
-
 
 static const
 char *py_target_to_thread_name (struct target_ops *ops , struct thread_info * info)
@@ -180,6 +182,58 @@ char *py_target_to_thread_name (struct target_ops *ops , struct thread_info * in
 
     return name;
 }
+static enum target_xfer_status py_target_to_xfer_partial (struct target_ops *ops,
+						enum target_object object,
+						const char *annex,
+						gdb_byte *readbuf,
+						const gdb_byte *writebuf,
+						ULONGEST offset, ULONGEST len,
+						ULONGEST *xfered_len)
+{
+    target_object *target_obj = target_ops_to_target_obj(ops);
+    PyObject * self = (PyObject *)target_obj;
+    struct cleanup *cleanup;
+    enum target_xfer_status rt = TARGET_XFER_E_IO;
+    PyObject *to_xfer_partial;
+
+    cleanup = ensure_python_env (get_current_arch (), current_language);
+
+    HasMethodOrReturnBeneath(self, to_xfer_partial, ops, object, annex, readbuf, writebuf, offset, len, xfered_len);
+
+    to_xfer_partial = PyObject_GetAttrString (self, "to_xfer_partial");
+
+
+    if (to_xfer_partial && PyCallable_Check(to_xfer_partial)) {
+	PyObject *__annex, *_readbuf, *_writebuf, *ret;
+
+	_readbuf = readbuf?PyByteArray_FromStringAndSize((char*)readbuf, len):Py_None;
+	_writebuf = writebuf?PyByteArray_FromStringAndSize((char*)writebuf, len):Py_None;
+
+	ret = PyObject_CallFunction(to_xfer_partial, "(isOOKK)", (int)object, annex, _readbuf, _writebuf, offset, len);
+	if (ret) {
+	    unsigned long lret ;
+	    const char *str;
+	    int l;
+
+	    lret = PyLong_AsUnsignedLongLong(ret);
+
+	    if (readbuf) {
+		str = PyByteArray_AsString(_readbuf);
+		l = PyByteArray_Size(_readbuf);
+		memcpy(readbuf, str, l);
+	    }
+	    *xfered_len = lret;
+
+	    rt = TARGET_XFER_OK;
+	}
+	if (_readbuf != Py_None) Py_XDECREF(_readbuf);
+	if (_writebuf != Py_None) Py_XDECREF(_writebuf);
+    }
+
+    do_cleanups(cleanup);
+
+    return rt;
+}
 
 static char *
 py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info)
@@ -213,6 +267,11 @@ py_target_to_update_thread_list (struct target_ops *ops)
     do_cleanups(cleanup);
 }
 
+static int
+default_true (struct target_ops *ops)
+{
+    return 1;
+}
 
 static void py_target_register_ops(struct target_ops * ops)
 {
@@ -223,6 +282,7 @@ static void py_target_register_ops(struct target_ops * ops)
 	ops->to_longname = xstrdup (_("A Python defined target layer"));
 
     /* Python Wrapper Calls */
+    ops->to_xfer_partial = py_target_to_xfer_partial;
     ops->to_thread_name = py_target_to_thread_name;
     ops->to_extra_thread_info = py_target_to_extra_thread_info;
     ops->to_update_thread_list = py_target_to_update_thread_list;
@@ -236,6 +296,7 @@ static void py_target_register_ops(struct target_ops * ops)
     ops->to_has_stack = default_child_has_stack;
     ops->to_has_registers = default_child_has_registers;
     ops->to_has_execution = default_child_has_execution;
+    default_true(ops);
 
     ops->to_magic = OPS_MAGIC;
 
@@ -347,6 +408,15 @@ tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
   return 0;
 }
 
+static PyObject *target_getconst(PyObject *_self, void *_value)
+{
+	return PyInt_FromLong((long)_value);
+}
+
+
+#define CONST_GET(x) {#x, target_getconst, NULL, #x, (void*)x}
+
+
 static PyGetSetDef target_object_getset[] =
 {
   { "name", tgt_py_get_name, NULL,
@@ -357,7 +427,34 @@ static PyGetSetDef target_object_getset[] =
     "The longname of the target", (void*)TGT_LONGNAME },
 
   { "stratum", NULL, NULL, "ID of the thread, as assigned by GDB.", NULL },
-
+CONST_GET(TARGET_OBJECT_AVR),
+CONST_GET(TARGET_OBJECT_SPU),
+CONST_GET(TARGET_OBJECT_MEMORY),
+CONST_GET(TARGET_OBJECT_RAW_MEMORY),
+CONST_GET(TARGET_OBJECT_STACK_MEMORY),
+CONST_GET(TARGET_OBJECT_CODE_MEMORY),
+CONST_GET(TARGET_OBJECT_UNWIND_TABLE),
+CONST_GET(TARGET_OBJECT_AUXV),
+CONST_GET(TARGET_OBJECT_WCOOKIE),
+CONST_GET(TARGET_OBJECT_MEMORY_MAP),
+CONST_GET(TARGET_OBJECT_FLASH),
+CONST_GET(TARGET_OBJECT_AVAILABLE_FEATURES),
+CONST_GET(TARGET_OBJECT_LIBRARIES),
+CONST_GET(TARGET_OBJECT_LIBRARIES_SVR4),
+CONST_GET(TARGET_OBJECT_LIBRARIES_AIX),
+CONST_GET(TARGET_OBJECT_OSDATA),
+CONST_GET(TARGET_OBJECT_SIGNAL_INFO),
+CONST_GET(TARGET_OBJECT_THREADS),
+CONST_GET(TARGET_OBJECT_STATIC_TRACE_DATA),
+CONST_GET(TARGET_OBJECT_HPUX_UREGS),
+CONST_GET(TARGET_OBJECT_HPUX_SOLIB_GOT),
+CONST_GET(TARGET_OBJECT_TRACEFRAME_INFO),
+CONST_GET(TARGET_OBJECT_FDPIC),
+CONST_GET(TARGET_OBJECT_DARWIN_DYLD_INFO),
+CONST_GET(TARGET_OBJECT_OPENVMS_UIB),
+CONST_GET(TARGET_OBJECT_BTRACE),
+CONST_GET(TARGET_OBJECT_BTRACE_CONF),
+CONST_GET(TARGET_OBJECT_EXEC_FILE),
   { NULL }
 };
 
