@@ -99,136 +99,155 @@ static target_object * target_ops_to_target_obj(struct target_ops *ops)
 	    return ops->op(ops, ##args);			\
 	}
 
+static char scratch_buf[4096];
+
 static const
-char *py_target_to_thread_name (struct target_ops *ops , struct thread_info * info)
+char *py_target_to_thread_name (struct target_ops *ops,
+				struct thread_info *info)
 {
-    /* Note how we can obtain our Parent Python Object from the ops too */
-    target_object *target_obj = target_ops_to_target_obj(ops);
-    PyObject * self = (PyObject *)target_obj;
+    target_object *target_obj = target_ops_to_target_obj (ops);
+    PyObject *self = (PyObject *) target_obj;
+    PyObject *arglist  = NULL;
+    PyObject *result   = NULL;
+    PyObject *callback = NULL;
+    PyObject *thread   = NULL;
 
-    PyObject *arglist;
-    PyObject *argobj;
-    PyObject *result;
-    PyObject *to_thread_name;
-
-    int arg;
-    char * args = "";
     struct cleanup *cleanup;
-
-    /* Linux defines TASK_COMM_LEN as 16 in the kernel's sched.h.
-     * But other targets may have different sizes...  */
-#define TASK_COMM_LEN 16  /* As defined in the kernel's sched.h.  */
-    /* static array required to pass the string back to the calling function */
-    static char name[TASK_COMM_LEN] = "";
+    char *host_string = NULL;
 
     cleanup = ensure_python_env (target_gdbarch (), current_language);
 
-    HasMethodOrReturnBeneath(self, to_thread_name, ops, info);
+    HasMethodOrReturnBeneath (self, to_thread_name, ops, info);
 
     /* (re-)initialise the static string before use in case of error */
-    name[0] = '\0';
+    scratch_buf[0] = '\0';
 
-    // Call into Python Method
+    callback = PyObject_GetAttrString (self, "to_thread_name");
+    if (!callback)
+      goto error;
 
-    to_thread_name = PyObject_GetAttrString (self, "to_thread_name");
-    if (! to_thread_name)
-	{
-	  error (_("Failed to get 'to_thread_name' object. Can't continue..."));
-	}
+    thread = gdbpy_selected_thread (NULL, NULL);
+    if (!thread)
+      goto error;
 
+    /* Time to call the callback */
+    arglist = Py_BuildValue ("(O)", thread);
+    if (!arglist)
+      goto error;
 
-    TRY
-    {
-	//result = PyObject_CallMethod(self, "to_thread_name", "");
-	arg = 123;
+    result = PyObject_Call (callback, arglist, NULL);
+    if (!result)
+      goto error;
 
-	/* Time to call the callback */
-	arglist = Py_BuildValue("(i)", arg);
+    /*
+     * GDB will raise an exception that the caller will catch.
+     * Python will raise an exception and return NULL.
+     */
+    host_string = python_string_to_host_string (result);
+    if (!host_string)
+      goto error;
 
-	result = PyObject_Call (to_thread_name, arglist, NULL);
-	Py_DECREF(arglist);
+    strncpy (scratch_buf, host_string, sizeof (scratch_buf) - 1);
+    scratch_buf[sizeof(scratch_buf) - 1] = '\0';
+    xfree ((void *) host_string);
 
-	if (result)
-	{
-	    char * host_string = python_string_to_host_string (result);
-	    if (host_string == NULL)
-	      {
-	        PyErr_SetString (PyExc_RuntimeError, _("Cannot allocate new name string."));
-	        return "err";
-	      }
+error:
+    Py_XDECREF (result);
+    Py_XDECREF (arglist);
+    Py_XDECREF (thread);
+    Py_XDECREF (callback);
 
-	    strncpy(name, host_string, TASK_COMM_LEN-1);
-	    name[TASK_COMM_LEN-1] = '\0';
-	}
+    if (PyErr_Occurred ())
+      {
+	gdbpy_print_stack ();
+	error (_("Error in Python while executing to_thread_name callback."));
+      }
 
-
-    }
-    CATCH (except, RETURN_MASK_ALL)
-    {
-	printf_filtered("Failed to call to_thread_name successfully!\n");
-	/* We *MUST* handle any exceptions before calling do_cleanups()
-	 * which exits the python environment
-	 */
-	 // Handle any exceptions
-    }
-    END_CATCH
-
-    Py_DECREF(result);
-
-    do_cleanups(cleanup);
-
-    return name;
+    do_cleanups (cleanup);
+    return scratch_buf;
 }
-static enum target_xfer_status py_target_to_xfer_partial (struct target_ops *ops,
-						enum target_object object,
-						const char *annex,
-						gdb_byte *readbuf,
-						const gdb_byte *writebuf,
-						ULONGEST offset, ULONGEST len,
-						ULONGEST *xfered_len)
+
+static enum target_xfer_status
+py_target_to_xfer_partial (struct target_ops *ops,
+			   enum target_object object, const char *annex,
+			   gdb_byte *gdb_readbuf, const gdb_byte *gdb_writebuf,
+			   ULONGEST offset, ULONGEST len, ULONGEST *xfered_len)
 {
-    target_object *target_obj = target_ops_to_target_obj(ops);
-    PyObject * self = (PyObject *)target_obj;
+    target_object *target_obj = target_ops_to_target_obj (ops);
+    PyObject *self = (PyObject *) target_obj;
+    PyObject *callback  = NULL;
+    PyObject *readbuf  = NULL;
+    PyObject *writebuf = NULL;
+    PyObject *ret       = NULL;
+
     struct cleanup *cleanup;
     enum target_xfer_status rt = TARGET_XFER_E_IO;
-    PyObject *to_xfer_partial;
+    unsigned long lret;
 
     cleanup = ensure_python_env (target_gdbarch (), current_language);
 
-    HasMethodOrReturnBeneath(self, to_xfer_partial, ops, object, annex, readbuf, writebuf, offset, len, xfered_len);
+    HasMethodOrReturnBeneath (self, to_xfer_partial, ops, object, annex,
+			      gdb_readbuf, gdb_writebuf, offset, len,
+			      xfered_len);
 
-    to_xfer_partial = PyObject_GetAttrString (self, "to_xfer_partial");
+    callback = PyObject_GetAttrString (self, "to_xfer_partial");
+    if (!callback)
+      goto error;
 
+    if (gdb_readbuf)
+      {
+	readbuf = PyByteArray_FromStringAndSize ((char *) gdb_readbuf, len);
+	if (!readbuf)
+	  goto error;
+      }
+    else
+      {
+	readbuf = Py_None;
+	Py_INCREF (Py_None);
+      }
 
-    if (to_xfer_partial && PyCallable_Check(to_xfer_partial)) {
-	PyObject *__annex, *_readbuf, *_writebuf, *ret;
+    if (gdb_writebuf)
+      {
+	writebuf = PyByteArray_FromStringAndSize ((char *) gdb_writebuf, len);
+	if (!writebuf)
+	  goto error;
+      }
+    else
+      {
+	writebuf = Py_None;
+	Py_INCREF (Py_None);
+      }
 
-	_readbuf = readbuf?PyByteArray_FromStringAndSize((char*)readbuf, len):Py_None;
-	_writebuf = writebuf?PyByteArray_FromStringAndSize((char*)writebuf, len):Py_None;
+    ret = PyObject_CallFunction (callback, "(isOOKK)", (int)object, annex,
+				 readbuf, writebuf, offset, len);
+    if (!ret)
+      goto error;
 
-	ret = PyObject_CallFunction(to_xfer_partial, "(isOOKK)", (int)object, annex, _readbuf, _writebuf, offset, len);
-	if (ret) {
-	    unsigned long lret ;
-	    const char *str;
-	    int l;
+    lret = PyLong_AsUnsignedLongLong (ret);
+    if (gdb_readbuf)
+      {
+	const char *str = PyByteArray_AsString (readbuf);
+	int l = PyByteArray_Size (readbuf);
+	memcpy (gdb_readbuf, str, l);
+      }
 
-	    lret = PyLong_AsUnsignedLongLong(ret);
+    *xfered_len = lret;
+    rt = TARGET_XFER_OK;
 
-	    if (readbuf) {
-		str = PyByteArray_AsString(_readbuf);
-		l = PyByteArray_Size(_readbuf);
-		memcpy(readbuf, str, l);
-	    }
-	    *xfered_len = lret;
+error:
+    Py_XDECREF (ret);
+    Py_XDECREF (writebuf);
+    Py_XDECREF (readbuf);
+    Py_XDECREF (callback);
 
-	    rt = TARGET_XFER_OK;
-	}
-	if (_readbuf != Py_None) Py_XDECREF(_readbuf);
-	if (_writebuf != Py_None) Py_XDECREF(_writebuf);
-    }
+    /* Maybe return TARGET_XFER_E_IO instead? */
+    if (PyErr_Occurred ())
+      {
+	gdbpy_print_stack ();
+	error (_("Error in Python while executing to_xfer_partial callback."));
+      }
 
-    do_cleanups(cleanup);
-
+    do_cleanups (cleanup);
     return rt;
 }
 
@@ -252,16 +271,42 @@ py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info
 static void
 py_target_to_update_thread_list (struct target_ops *ops)
 {
-    /* Note how we can obtain our Parent Python Object from the ops too */
-    target_object *target_obj = target_ops_to_target_obj(ops);
-    PyObject * self = (PyObject *)target_obj;
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject * self = (PyObject *) target_obj;
+  PyObject *callback = NULL;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
 
-    struct cleanup *cleanup;
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
+  struct cleanup *cleanup;
 
-    HasMethodOrReturnBeneath(self, to_update_thread_list, ops);
+  cleanup = ensure_python_env (target_gdbarch (), current_language);
 
-    do_cleanups(cleanup);
+  HasMethodOrReturnBeneath (self, to_update_thread_list, ops);
+
+  callback = PyObject_GetAttrString (self, "to_update_thread_list");
+  if (!callback)
+    goto error;
+
+  arglist = Py_BuildValue ("()");
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_update_thread_list callback."));
+    }
+
+  do_cleanups (cleanup);
 }
 
 static int
@@ -335,7 +380,7 @@ tgt_py_get_name (PyObject *self, void * arg)
   target_object *target_obj = (target_object *) self;
   struct target_ops *ops = &target_obj->ops;
 
-  PyObject * name;
+  PyObject *name;
 
   const char *shortname;
   const char *longname;
@@ -347,24 +392,24 @@ tgt_py_get_name (PyObject *self, void * arg)
   longname = ops->to_longname;
 
   if (shortname == NULL)
-      shortname = noname;
+    shortname = noname;
 
   if (longname == NULL)
-      longname = noname;
+    longname = noname;
 
   switch (target_string)
-  {
-	default:
-	case TGT_NAME:
-	    name = PyString_FromFormat("%s (%s)", shortname, longname);
-	    break;
-	case TGT_SHORTNAME:
-	    name = PyString_FromString(shortname);
-	    break;
-	case TGT_LONGNAME:
-	    name = PyString_FromString(longname);
-	    break;
-  }
+    {
+    default:
+    case TGT_NAME:
+	name = PyString_FromFormat ("%s (%s)", shortname, longname);
+	break;
+    case TGT_SHORTNAME:
+	name = PyString_FromString (shortname);
+	break;
+    case TGT_LONGNAME:
+	name = PyString_FromString (longname);
+	break;
+    }
 
   return name;
 }
@@ -375,32 +420,44 @@ tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
   enum target_names target_string = (enum target_names) arg;
   target_object *target_obj = (target_object *) self;
   struct target_ops *ops = &target_obj->ops;
-  char * name;
+  char *name = NULL;
 
   THPY_REQUIRE_VALID_INT (target_obj);
 
-  name = python_string_to_host_string (newvalue);
-  if (name == NULL)
+  TRY
     {
-      PyErr_SetString (PyExc_RuntimeError, _("Cannot allocate new name string."));
-      return -1;
+      /*
+       * GDB will raise an exception that we need to catch and raise as
+       * a Python exception.
+       * Python will raise an exception that we'll pass back to the caller.
+       */
+      name = python_string_to_host_string (newvalue);
     }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_SET_HANDLE_EXCEPTION (except);
+    }
+  END_CATCH
+
+  /* Needs to be outside of the TRY/CATCH block */
+  if (!name)
+    return -1;
 
   switch (target_string)
-  {
-	default:
-	case TGT_NAME:
-	    /* No Op */
-	    break;
-	case TGT_SHORTNAME:
-	    xfree((void *)ops->to_shortname);
-	    ops->to_shortname = name;
-	    break;
-	case TGT_LONGNAME:
-	    xfree((void *)ops->to_longname);
-	    ops->to_longname = name;
-	    break;
-  }
+    {
+    default:
+    case TGT_NAME:
+	/* No Op */
+	break;
+    case TGT_SHORTNAME:
+	xfree ((void *)ops->to_shortname);
+	ops->to_shortname = name;
+	break;
+    case TGT_LONGNAME:
+	xfree ((void *)ops->to_longname);
+	ops->to_longname = name;
+	break;
+    }
 
   return 0;
 }
