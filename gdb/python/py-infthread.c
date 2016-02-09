@@ -21,6 +21,7 @@
 #include "gdbthread.h"
 #include "inferior.h"
 #include "python-internal.h"
+#include "py-infthread.h"
 
 extern PyTypeObject thread_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("thread_object");
@@ -302,6 +303,25 @@ thpy_get_registers (PyObject *self, void *closure)
     return PyDictProxy_New(d);
 }
 
+void
+thpy_private_dtor (struct private_thread_info *info)
+{
+  PyObject *obj = (PyObject *)info;
+  Py_DECREF(obj);
+}
+
+static PyObject *
+thpy_get_info (PyObject *self, void *closure)
+{
+  thread_object *obj = (thread_object *) self;
+  PyObject *info;
+  THPY_REQUIRE_VALID(obj);
+  info = get_python_thread_info (obj->thread)->obj;
+
+  Py_INCREF(info);
+  return info;
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -367,6 +387,7 @@ static gdb_PyGetSetDef thread_object_getset[] =
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
   { "registers", thpy_get_registers, NULL, "Registers for this thread.", NULL },
+  { "info", thpy_get_info, NULL, "Info associated with thread", NULL },
 
   { NULL }
 };

@@ -431,28 +431,6 @@ typedef struct gdbpy_breakpoint_object
 /* Variables used to pass information between the Breakpoint
    constructor and the breakpoint-created hook function.  */
 extern gdbpy_breakpoint_object *bppy_pending_object;
-
-
-typedef struct
-{
-  PyObject_HEAD
-
-  /* The thread we represent.  */
-  struct thread_info *thread;
-
-  /* Regcache */
-  PyObject *regcache;
-
-  /* The Inferior object to which this thread belongs.  */
-  PyObject *inf_obj;
-
-  /*
-   * Registers associated with this thread.  Python code may hold outstanding
-   * references and we need to be able to mark them invalid.
-   */
-  PyObject *register_objs;
-} thread_object;
-
 extern struct cmd_list_element *set_python_list;
 extern struct cmd_list_element *show_python_list;
 
@@ -561,9 +539,6 @@ struct objfile *objfpy_object_to_objfile(PyObject *self);
 
 PyObject *gdbarch_to_arch_object (struct gdbarch *gdbarch);
 
-thread_object *create_thread_object (struct thread_info *tp);
-thread_object *find_thread_object (ptid_t ptid)
-    CPYCHECKER_RETURNS_BORROWED_REF;
 PyObject *find_inferior_object (int pid);
 PyObject *inferior_to_inferior_object (struct inferior *inferior);
 
@@ -770,6 +745,4 @@ struct varobj;
 struct varobj_iter *py_varobj_get_iterator (struct varobj *var,
 					    PyObject *printer);
 
-PyObject *register_to_register_object (thread_object *thread_obj, int reg);
-void del_thread_registers (thread_object *thread);
 #endif /* GDB_PYTHON_INTERNAL_H */

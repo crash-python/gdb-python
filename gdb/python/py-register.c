@@ -2,6 +2,7 @@
 #include "python-internal.h"
 #include "gdbthread.h"
 #include "regcache.h"
+#include "py-infthread.h"
 
 extern PyTypeObject register_object_type;
 

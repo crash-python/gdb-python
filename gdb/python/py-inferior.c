@@ -29,6 +29,7 @@
 #include "gdb_signals.h"
 #include "py-event.h"
 #include "py-stopevent.h"
+#include "py-infthread.h"
 
 struct threadlist_entry {
   thread_object *thread_obj;
@@ -431,6 +432,69 @@ infpy_threads (PyObject *self, PyObject *args)
     }
 
   return tuple;
+}
+
+static PyObject *
+infpy_new_thread (PyObject *self, PyObject *args)
+{
+  struct inferior *inf;
+  struct thread_info *info = NULL;
+  PyObject *priv = Py_None;
+  int pid;
+  long lwp, tid;
+
+  if (!PyArg_ParseTuple(args, "(ill)|O:ptid", &pid, &lwp, &tid, &priv))
+    return NULL;
+
+  ptid_t ptid(pid, lwp, tid);
+
+  python_thread_info *pyinfo = new python_thread_info;
+  Py_INCREF(priv);
+  pyinfo->obj = priv;
+
+  inf = current_inferior();
+  if (inf->pid != 0 && inf->pid != pid)
+    {
+      inf = find_inferior_pid (pid);
+      if (!inf)
+	inf = current_inferior();
+    }
+  inferior_appeared(inf, pid);
+
+  TRY
+    {
+      info = add_thread_with_info(ptid, pyinfo);
+    }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      delete pyinfo;
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+  END_CATCH
+
+  return (PyObject *)create_thread_object(info);
+}
+
+static PyObject *
+infpy_appeared (PyObject *self, PyObject *args)
+{
+  inferior_object *inf_obj = (inferior_object *) self;
+  int pid;
+
+  if (!PyArg_ParseTuple(args, "i:pid", &pid))
+    return NULL;
+
+  TRY
+    {
+      inferior_appeared (inf_obj->inferior, pid);
+    }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+  END_CATCH
+
+  Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -966,6 +1030,10 @@ static PyMethodDef inferior_object_methods[] =
 Return true if this inferior is valid, false if not." },
   { "threads", infpy_threads, METH_NOARGS,
     "Return all the threads of this inferior." },
+  { "new_thread", infpy_new_thread, METH_VARARGS,
+    "Associates a new thread with this inferior with optional object(s)" },
+  { "appeared", infpy_appeared, METH_VARARGS,
+    "Informs gdb that a PID has appeared for this inferior." },
   { "read_memory", (PyCFunction) infpy_read_memory,
     METH_VARARGS | METH_KEYWORDS,
     "read_memory (address, length) -> buffer\n\
