@@ -2763,6 +2763,14 @@ when it is called.  If there are no valid threads, the method will
 return an empty tuple.
 @end defun
 
+@findex Inferior.new_thread
+@defun Inferior.new_thread (ptid-tuple [, info])
+This method creates a new thread object within @value{GDBN} and assigns it
+the ptid contained in ptid-tuple.  Optionally, the caller can provide an
+object that will be associated with the thread and made available via the
+@code{gdb.InferiorThread.info} attribute.
+@end defun
+
 @findex Inferior.read_memory
 @defun Inferior.read_memory (address, length)
 Read @var{length} addressable memory units from the inferior, starting at
@@ -3057,6 +3065,12 @@ Return a dictionary of registers associated with this thread.  The dictionary
 is not writable but the values of the registers it contains may be writable
 depending on the target.  Writing to the register values will update them
 similar to using the @code{set $register} @value{GDBN} command.
+@end defvar
+
+@defvar InferiorThread.info
+If the thread was created via a @code{gdb.InferiorThread.new_thread} call,
+the @code{info} attribute will contain the object passed to it during
+thread creation.  This attribute is not writable.
 @end defvar
 
 A @code{gdb.InferiorThread} object has the following methods:
