@@ -1332,3 +1332,12 @@ gdbpy_current_target (PyObject *self, PyObject *args)
 
   return target_obj;
 }
+
+bool
+gdbpy_current_target_is_pytarget(void)
+{
+  target_ops *target = current_top_target ();
+
+  python_target *pytarget = dynamic_cast<python_target *>(target);
+  return pytarget != NULL;
+}

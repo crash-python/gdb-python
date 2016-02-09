@@ -390,6 +390,12 @@ typedef struct
   /* The thread we represent.  */
   struct thread_info *thread;
 
+  /*
+   * Dictionary holding user-added attributes.
+   * This is the __dict__ attribute of the object.
+   */
+  PyObject *dict;
+
   /* Regcache */
   PyObject *regcache;
 
@@ -404,6 +410,7 @@ typedef struct
 } thread_object;
 
 struct inferior_object;
+
 
 extern struct cmd_list_element *set_python_list;
 extern struct cmd_list_element *show_python_list;
@@ -470,6 +477,7 @@ PyObject *gdbpy_create_ptid_object (ptid_t ptid);
 PyObject *gdbpy_selected_thread (PyObject *self, PyObject *args);
 PyObject *gdbpy_selected_inferior (PyObject *self, PyObject *args);
 PyObject *gdbpy_current_target (PyObject *self, PyObject *args);
+bool gdbpy_current_target_is_pytarget(void);
 PyObject *gdbpy_string_to_argv (PyObject *self, PyObject *args);
 PyObject *gdbpy_parameter_value (enum var_types type, void *var);
 char *gdbpy_parse_command_name (const char *name,

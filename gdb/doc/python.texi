@@ -2997,6 +2997,14 @@ as a whole.  Some platforms can have multiple architectures in a
 single address space, so this may not match the architecture of a
 particular frame (@pxref{Frames In Python}).
 @end defun
+@findex Inferior.new_thread
+@defun Inferior.new_thread (ptid-tuple [, info])
+This method creates a new thread object within @value{GDBN} and assigns it
+the ptid contained in ptid-tuple.
+
+This method will raise @code{AttributeError} if the current target is not
+derived from @code{gdb.Target}.
+@end defun
 
 @findex Inferior.read_memory
 @defun Inferior.read_memory (address, length)
@@ -3294,6 +3302,8 @@ The new thread.
 @findex gdb.InferiorThread
 Python scripts can access information about, and manipulate inferior threads
 controlled by @value{GDBN}, via objects of the @code{gdb.InferiorThread} class.
+@code{gdb.InferiorThread} objects can have arbitrary attributed attached to
+them.
 
 The following thread-related functions are available in the @code{gdb}
 module:

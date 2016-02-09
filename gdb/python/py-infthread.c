@@ -21,6 +21,7 @@
 #include "gdbarch.h"
 #include "gdbthread.h"
 #include "inferior.h"
+#include "py-inferior.h"
 #include "python-internal.h"
 
 extern PyTypeObject thread_object_type
@@ -53,7 +54,13 @@ create_thread_object (struct thread_info *tp)
   thread_obj->thread = tp;
   thread_obj->inf_obj = (PyObject *) inf_obj.release ();
   thread_obj->register_objs = NULL;
-
+  thread_obj->dict = PyDict_New ();
+  if (thread_obj->dict == NULL)
+    {
+      Py_XDECREF (thread_obj->dict);
+      Py_XDECREF (thread_obj.release ());
+      thread_obj = NULL;
+    }
   return thread_obj;
 }
 
@@ -62,6 +69,7 @@ thpy_dealloc (PyObject *self)
 {
   del_thread_registers ((thread_object *) self);
 
+  Py_DECREF (((thread_object *) self)->dict);
   Py_DECREF (((thread_object *) self)->inf_obj);
   Py_TYPE (self)->tp_free (self);
 }
@@ -394,8 +402,7 @@ static gdb_PyGetSetDef thread_object_getset[] =
     NULL },
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
-  { "registers", thpy_get_registers, NULL, "Registers for this thread.",
-    NULL },
+  { "registers", thpy_get_registers, NULL, "Registers for this thread.", NULL },
 
   { NULL }
 };
@@ -460,7 +467,7 @@ PyTypeObject thread_object_type =
   0,				  /* tp_dict */
   0,				  /* tp_descr_get */
   0,				  /* tp_descr_set */
-  0,				  /* tp_dictoffset */
+  offsetof(thread_object, dict),  /* tp_dictoffset */
   0,				  /* tp_init */
   0				  /* tp_alloc */
 };

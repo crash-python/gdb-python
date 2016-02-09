@@ -29,6 +29,7 @@
 #include "gdbsupport/gdb_signals.h"
 #include "py-event.h"
 #include "py-stopevent.h"
+#include "py-inferior.h"
 
 struct threadlist_entry
 {
@@ -83,6 +84,17 @@ extern PyTypeObject membuf_object_type
 	return NULL;						\
       }								\
   } while (0)
+
+#define INFPY_REQUIRE_PYTARGET(msg)                                           \
+  do {                                                                        \
+    if (!gdbpy_current_target_is_pytarget())                                  \
+      {                                                                       \
+        PyErr_SetString (PyExc_AttributeError,                                \
+                               _("Native targets cannot " #msg "."));     \
+        return NULL;                                                          \
+      }                                                                       \
+    }                                                                         \
+  while (0)
 
 static void
 python_on_normal_stop (struct bpstats *bs, int print_frame)
@@ -415,6 +427,90 @@ infpy_threads (PyObject *self, PyObject *args)
 
   return tuple;
 }
+
+static PyObject *
+infpy_new_thread (PyObject *self, PyObject *args)
+{
+  struct inferior *inf;
+  struct thread_info *info = NULL;
+  int pid;
+  long lwp;
+  long tid;
+  PyObject *pypriv = Py_None;
+
+  INFPY_REQUIRE_PYTARGET("create threads");
+
+  if (!PyArg_ParseTuple(args, "(ill)|O:ptid",
+      &pid, &lwp, &tid, &pypriv))
+    return NULL;
+
+  inf = current_inferior();
+  if (inf->pid != 0 && inf->pid != pid)
+    {
+      inf = find_inferior_pid (pid);
+      if (!inf)
+        inf = current_inferior ();
+    }
+
+  /* needed? */
+  inferior_appeared (inf, pid);
+
+  try
+    {
+      ptid_t ptid(pid, lwp, tid);
+
+      info = add_thread_silent(ptid);
+
+      if (inferior_ptid == null_ptid)
+        switch_to_thread_no_regs (info);
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+
+  return (PyObject *)thread_to_thread_object(info).release();
+}
+
+static PyObject *
+infpy_delete_thread (PyObject *self, PyObject *args)
+{
+  struct thread_info *info = NULL;
+  int pid;
+  long lwp;
+  long tid;
+
+  INFPY_REQUIRE_PYTARGET("delete threads");
+
+  if (!PyArg_ParseTuple(args, "(ill)|O:ptid", &pid, &lwp, &tid))
+    return NULL;
+
+  try
+    {
+      ptid_t ptid(pid, lwp, tid);
+
+      info = find_thread_ptid(ptid);
+      if (!info)
+	{
+	  PyErr_SetString (PyExc_RuntimeError, _("Thread does not exist."));
+	  return NULL;
+	}
+
+
+      delete_thread_silent(info);
+      if (ptid == inferior_ptid)
+	{
+	  inferior_ptid = null_ptid;
+	}
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+
+  Py_RETURN_NONE;
+}
+
 
 static PyObject *
 infpy_get_num (PyObject *self, void *closure)
@@ -947,6 +1043,10 @@ static PyMethodDef inferior_object_methods[] =
 Return true if this inferior is valid, false if not." },
   { "threads", infpy_threads, METH_NOARGS,
     "Return all the threads of this inferior." },
+  { "new_thread", infpy_new_thread, METH_VARARGS,
+    "Adds a new thread to this inferior with optional object(s)" },
+  { "delete_thread", infpy_delete_thread, METH_VARARGS,
+    "Deletes a thread from this inferior" },
   { "read_memory", (PyCFunction) infpy_read_memory,
     METH_VARARGS | METH_KEYWORDS,
     "read_memory (address, length) -> buffer\n\
