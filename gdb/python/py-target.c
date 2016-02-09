@@ -63,8 +63,8 @@ extern PyTypeObject target_object_type
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
-#define ENTRY() {}
-#define EXIT() {}
+#define ENTRY() {} while(0)
+#define EXIT() {} while(0)
 
 /* Large spacing between sections during development for clear divisions */
 
