@@ -29,6 +29,7 @@
 #include "common/gdb_signals.h"
 #include "py-event.h"
 #include "py-stopevent.h"
+#include "py-inferior.h"
 
 struct threadlist_entry {
   thread_object *thread_obj;
@@ -412,6 +413,71 @@ infpy_threads (PyObject *self, PyObject *args)
     }
 
   return tuple;
+}
+
+static PyObject *
+infpy_new_thread (PyObject *self, PyObject *args)
+{
+  struct inferior *inf;
+  struct thread_info *info = NULL;
+  int pid;
+  long lwp;
+  long tid;
+  PyObject *pypriv = Py_None;
+
+  if (!PyArg_ParseTuple(args, "(ill)|O:ptid",
+      &pid, &lwp, &tid, &pypriv))
+    return NULL;
+
+  inf = current_inferior();
+  if (inf->pid != 0 && inf->pid != pid)
+    {
+      inf = find_inferior_pid (pid);
+      if (!inf)
+	inf = current_inferior();
+    }
+  inferior_appeared(inf, pid);
+
+  try
+    {
+      ptid_t ptid(pid, lwp, tid);
+      infpy_thread_info *priv = new infpy_thread_info;
+      Py_INCREF(pypriv);
+      priv->object = pypriv;
+
+      info = add_thread_silent(ptid);
+      info->priv.reset(priv);
+
+      if (inferior_ptid == null_ptid)
+	      inferior_ptid = info->ptid;
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+
+  return (PyObject *)create_thread_object(info);
+}
+
+static PyObject *
+infpy_appeared (PyObject *self, PyObject *args)
+{
+  inferior_object *inf_obj = (inferior_object *) self;
+  int pid;
+
+  if (!PyArg_ParseTuple(args, "i:pid", &pid))
+    return NULL;
+
+  try
+    {
+      inferior_appeared (inf_obj->inferior, pid);
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+
+  Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -946,6 +1012,10 @@ static PyMethodDef inferior_object_methods[] =
 Return true if this inferior is valid, false if not." },
   { "threads", infpy_threads, METH_NOARGS,
     "Return all the threads of this inferior." },
+  { "new_thread", infpy_new_thread, METH_VARARGS,
+    "Associates a new thread with this inferior with optional object(s)" },
+  { "appeared", infpy_appeared, METH_VARARGS,
+    "Informs gdb that a PID has appeared for this inferior." },
   { "read_memory", (PyCFunction) infpy_read_memory,
     METH_VARARGS | METH_KEYWORDS,
     "read_memory (address, length) -> buffer\n\

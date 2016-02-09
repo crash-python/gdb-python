@@ -393,6 +393,7 @@ typedef struct
 
 struct inferior_object;
 
+
 extern struct cmd_list_element *set_python_list;
 extern struct cmd_list_element *show_python_list;
 

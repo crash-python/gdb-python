@@ -20,6 +20,7 @@
 #include "defs.h"
 #include "gdbthread.h"
 #include "inferior.h"
+#include "py-inferior.h"
 #include "python-internal.h"
 
 extern PyTypeObject thread_object_type
@@ -333,6 +334,33 @@ thpy_get_registers (PyObject *self, void *closure)
     return PyDictProxy_New(d);
 }
 
+static PyObject *
+thpy_get_info (PyObject *self, void *closure)
+{
+  thread_object *obj = (thread_object *) self;
+  private_thread_info *priv_info;
+  infpy_thread_info *info;
+  THPY_REQUIRE_VALID(obj);
+
+  priv_info = obj->thread->priv.get ();
+  if (!priv_info)
+    {
+      Py_INCREF (Py_None);
+      return Py_None;
+    }
+
+  info = dynamic_cast<infpy_thread_info *>(priv_info);
+  if (!info)
+    {
+      PyErr_SetString(PyExc_TypeError,
+		      "thread private data is not available for native targets");
+      return NULL;
+    }
+
+  Py_INCREF(info->object);
+  return info->object;
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -391,8 +419,8 @@ static gdb_PyGetSetDef thread_object_getset[] =
     NULL },
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
-  { "registers", thpy_get_registers, NULL, "Registers for this thread.",
-    NULL },
+  { "registers", thpy_get_registers, NULL, "Registers for this thread.", NULL },
+  { "info", thpy_get_info, NULL, "Info associated with thread", NULL },
 
   { NULL }
 };
