@@ -299,6 +299,31 @@ thpy_get_registers (PyObject *self, void *closure)
     return PyDictProxy_New(d);
 }
 
+void
+thpy_private_dtor (struct private_thread_info *info)
+{
+  PyObject *obj = (PyObject *)info;
+  Py_DECREF(obj);
+}
+
+static PyObject *
+thpy_get_info (PyObject *self, void *closure)
+{
+  thread_object *obj = (thread_object *) self;
+  PyObject *info;
+  THPY_REQUIRE_VALID(obj);
+  info = (PyObject *)obj->thread->priv;
+
+  if (obj->thread->private_dtor != thpy_private_dtor)
+    {
+      PyErr_SetString(PyExc_TypeError, "thread private data is not PyObject");
+      return NULL;
+    }
+
+  Py_INCREF(info);
+  return info;
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -363,8 +388,8 @@ static PyGetSetDef thread_object_getset[] =
     NULL },
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
-  { "registers", thpy_get_registers, NULL, "Registers for this thread.",
-    NULL },
+  { "registers", thpy_get_registers, NULL, "Registers for this thread.", NULL },
+  { "info", thpy_get_info, NULL, "Info associated with thread", NULL },
 
   { NULL }
 };

@@ -425,6 +425,65 @@ infpy_threads (PyObject *self, PyObject *args)
 }
 
 static PyObject *
+infpy_new_thread (PyObject *self, PyObject *args)
+{
+  struct inferior *inf;
+  struct thread_info *info = NULL;
+  ptid_t ptid;
+  PyObject *priv = Py_None;
+
+  if (!PyArg_ParseTuple(args, "(ill)|O:ptid",
+      &ptid.pid, &ptid.lwp, &ptid.tid, &priv))
+    return NULL;
+
+  inf = current_inferior();
+  if (inf->pid != 0 && inf->pid != ptid.pid)
+    {
+      inf = find_inferior_pid (ptid.pid);
+      if (!inf)
+	inf = current_inferior();
+    }
+  inferior_appeared(inf, ptid.pid);
+
+  TRY
+    {
+      info = add_thread_with_info(ptid, (struct private_thread_info *)priv);
+    }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+  END_CATCH
+
+  Py_INCREF(priv);
+  info->private_dtor = thpy_private_dtor;
+
+  return (PyObject *)create_thread_object(info);
+}
+
+static PyObject *
+infpy_appeared (PyObject *self, PyObject *args)
+{
+  inferior_object *inf_obj = (inferior_object *) self;
+  int pid;
+
+  if (!PyArg_ParseTuple(args, "i:pid", &pid))
+    return NULL;
+
+  TRY
+    {
+      inferior_appeared (inf_obj->inferior, pid);
+    }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+  END_CATCH
+
+  Py_RETURN_NONE;
+}
+
+static PyObject *
 infpy_get_num (PyObject *self, void *closure)
 {
   inferior_object *inf = (inferior_object *) self;
@@ -924,6 +983,10 @@ static PyMethodDef inferior_object_methods[] =
 Return true if this inferior is valid, false if not." },
   { "threads", infpy_threads, METH_NOARGS,
     "Return all the threads of this inferior." },
+  { "new_thread", infpy_new_thread, METH_VARARGS,
+    "Associates a new thread with this inferior with optional object(s)" },
+  { "appeared", infpy_appeared, METH_VARARGS,
+    "Informs gdb that a PID has appeared for this inferior." },
   { "read_memory", (PyCFunction) infpy_read_memory,
     METH_VARARGS | METH_KEYWORDS,
     "read_memory (address, length) -> buffer\n\

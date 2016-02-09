@@ -322,6 +322,9 @@ typedef struct
   PyObject *register_objs;
 } thread_object;
 
+struct private_thread_info;
+void thpy_private_dtor (struct private_thread_info *info);
+
 extern struct cmd_list_element *set_python_list;
 extern struct cmd_list_element *show_python_list;
 
