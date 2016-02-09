@@ -26,6 +26,9 @@
 
 #include "py-target.h"
 
+static PyObject *py_target_xfer_eof_error;
+static PyObject *py_target_xfer_unavailable_error;
+
 extern PyTypeObject target_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("target_object");
 
@@ -220,8 +223,30 @@ py_target_to_xfer_partial (struct target_ops *ops,
 
     ret = PyObject_CallFunction (callback, "(isOOKK)", (int)object, annex,
 				 readbuf, writebuf, offset, len);
-    if (!ret)
-      goto error;
+    if (PyErr_Occurred())
+      {
+	if (PyErr_ExceptionMatches (py_target_xfer_eof_error))
+	  {
+	    PyErr_Clear();
+	    rt = TARGET_XFER_EOF;
+	    goto error;
+	  }
+	else if (PyErr_ExceptionMatches (PyExc_IOError))
+	  {
+	    PyErr_Clear();
+	    rt = TARGET_XFER_E_IO;
+	    goto error;
+	  }
+	else if (PyErr_ExceptionMatches (py_target_xfer_unavailable_error))
+	  {
+	    PyErr_Clear();
+	    rt = TARGET_XFER_UNAVAILABLE;
+	    *xfered_len = len;
+	    goto error;
+	  }
+	else
+	  goto error;
+    }
 
     lret = PyLong_AsUnsignedLongLong (ret);
     if (gdb_readbuf)
@@ -231,8 +256,8 @@ py_target_to_xfer_partial (struct target_ops *ops,
 	memcpy (gdb_readbuf, str, l);
       }
 
-    *xfered_len = lret;
     rt = TARGET_XFER_OK;
+    *xfered_len = lret;
 
 error:
     Py_XDECREF (ret);
@@ -240,7 +265,6 @@ error:
     Py_XDECREF (readbuf);
     Py_XDECREF (callback);
 
-    /* Maybe return TARGET_XFER_E_IO instead? */
     if (PyErr_Occurred ())
       {
 	gdbpy_print_stack ();
@@ -593,10 +617,33 @@ gdbpy_initialize_target (void)
   if (PyType_Ready (&target_object_type) < 0)
     return -1;
 
-  EXIT();
+  py_target_xfer_eof_error = PyErr_NewException ("gdb.TargetXferEOF",
+						 PyExc_EOFError, NULL);
+  if (!py_target_xfer_eof_error)
+    goto fail;
+
+  if (gdb_pymodule_addobject (gdb_module, "TargetXferEOF",
+			      py_target_xfer_eof_error) < 0)
+    goto fail;
+
+  py_target_xfer_unavailable_error = PyErr_NewException (
+						    "gdb.TargetXferUnavailable",
+						    PyExc_LookupError, NULL);
+  if (!py_target_xfer_unavailable_error)
+    goto fail;
+
+  if (gdb_pymodule_addobject (gdb_module, "TargetXferUnavailable",
+			      py_target_xfer_unavailable_error) < 0)
+    goto fail;
+
+  EXIT ();
 
   return gdb_pymodule_addobject (gdb_module, "Target",
 				 (PyObject *) &target_object_type);
+fail:
+  gdbpy_print_stack();
+  EXIT ();
+  return -1;
 }
 
 
