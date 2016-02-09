@@ -94,6 +94,7 @@ static target_object * target_ops_to_target_obj(struct target_ops *ops)
 #define HasMethodOrReturnBeneath(py_ob, op, ops, args...)	\
 	if (!PyObject_HasAttrString(py_ob, #op))		\
 	{							\
+	    do_cleanups (cleanup);				\
 	    ops = ops->beneath;					\
 	    return ops->op(ops, ##args);			\
 	}
@@ -120,16 +121,12 @@ char *py_target_to_thread_name (struct target_ops *ops , struct thread_info * in
     /* static array required to pass the string back to the calling function */
     static char name[TASK_COMM_LEN] = "";
 
+    cleanup = ensure_python_env (target_gdbarch (), current_language);
+
     HasMethodOrReturnBeneath(self, to_thread_name, ops, info);
 
     /* (re-)initialise the static string before use in case of error */
     name[0] = '\0';
-
-    /*
-     * Don't try to enter the python environment until we know we will try to execute.
-     * The call to HasAttr should be safe to call.
-     */
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     // Call into Python Method
 
