@@ -51,6 +51,7 @@ create_thread_object (struct thread_info *tp)
 
   thread_obj->thread = tp;
   thread_obj->inf_obj = (PyObject *) inf_obj.release ();
+  thread_obj->dict = NULL;
   return thread_obj;
 }
 
@@ -449,7 +450,7 @@ PyTypeObject thread_object_type =
   0,				  /* tp_dict */
   0,				  /* tp_descr_get */
   0,				  /* tp_descr_set */
-  0,				  /* tp_dictoffset */
+  offsetof(thread_object, dict),  /* tp_dictoffset */
   0,				  /* tp_init */
   0				  /* tp_alloc */
 };

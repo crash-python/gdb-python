@@ -383,6 +383,12 @@ struct thread_object
   /* The thread we represent.  */
   struct thread_info *thread;
 
+  /*
+   * Dictionary holding user-added attributes.
+   * This is the __dict__ attribute of the object.
+   */
+  PyObject *dict;
+
   /* The Inferior object to which this thread belongs.  */
   PyObject *inf_obj;
 };
