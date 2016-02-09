@@ -129,7 +129,7 @@ char *py_target_to_thread_name (struct target_ops *ops , struct thread_info * in
      * Don't try to enter the python environment until we know we will try to execute.
      * The call to HasAttr should be safe to call.
      */
-    cleanup = ensure_python_env (get_current_arch (), current_language);
+    cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     // Call into Python Method
 
@@ -196,7 +196,7 @@ static enum target_xfer_status py_target_to_xfer_partial (struct target_ops *ops
     enum target_xfer_status rt = TARGET_XFER_E_IO;
     PyObject *to_xfer_partial;
 
-    cleanup = ensure_python_env (get_current_arch (), current_language);
+    cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     HasMethodOrReturnBeneath(self, to_xfer_partial, ops, object, annex, readbuf, writebuf, offset, len, xfered_len);
 
@@ -243,7 +243,7 @@ py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info
     PyObject * self = (PyObject *)target_obj;
 
     struct cleanup *cleanup;
-    cleanup = ensure_python_env (get_current_arch (), current_language);
+    cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     HasMethodOrReturnBeneath(self, to_extra_thread_info, ops, info);
 
@@ -260,7 +260,7 @@ py_target_to_update_thread_list (struct target_ops *ops)
     PyObject * self = (PyObject *)target_obj;
 
     struct cleanup *cleanup;
-    cleanup = ensure_python_env (get_current_arch (), current_language);
+    cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     HasMethodOrReturnBeneath(self, to_update_thread_list, ops);
 
