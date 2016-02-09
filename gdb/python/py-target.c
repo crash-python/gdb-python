@@ -334,6 +334,318 @@ error:
 }
 
 static int
+py_target_to_thread_alive (struct target_ops *ops, ptid_t ptid)
+{
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject *self = (PyObject *) target_obj;
+  PyObject *ptid_obj = NULL;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+  PyObject *callback = NULL;
+
+  struct cleanup *cleanup;
+  long ret = 0;
+
+  cleanup = ensure_python_env (get_current_arch (), current_language);
+
+  HasMethodOrReturnBeneath (self, to_thread_alive, ops, ptid);
+
+  callback = PyObject_GetAttrString (self, "to_thread_alive");
+  if (!callback)
+    goto error;
+
+  ptid_obj = gdbpy_create_ptid_object (ptid);
+  if (!ptid_obj)
+    goto error;
+
+  arglist = Py_BuildValue ("(O)", ptid_obj);
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+  ret = PyInt_AsLong (result);
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (ptid_obj);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_thread_alive callback."));
+    }
+
+  do_cleanups (cleanup);
+  return ret;
+}
+
+static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
+{
+  /* Note how we can obtain our Parent Python Object from the ops too */
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject *self = (PyObject *) target_obj;
+  PyObject *ptid_obj = NULL;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+  PyObject *callback = NULL;
+
+  struct cleanup *cleanup;
+  char *ret;
+
+  cleanup = ensure_python_env (target_gdbarch (), current_language);
+  HasMethodOrReturnBeneath (self, to_pid_to_str, ops, ptid);
+
+  scratch_buf[0] = '\0';
+
+  callback = PyObject_GetAttrString (self, "to_pid_to_str");
+  if (!callback)
+    goto error;
+
+  ptid_obj = gdbpy_create_ptid_object (ptid);
+  if (!ptid_obj)
+    goto error;
+
+  arglist = Py_BuildValue ("(O)", ptid_obj);
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+
+  if (!result)
+    goto error;
+
+  ret = python_string_to_host_string (result);
+  if (!ret)
+    goto error;
+
+  strncpy (scratch_buf, ret, sizeof (scratch_buf) - 1);
+  scratch_buf[sizeof (scratch_buf) - 1] = '\0';
+  xfree (ret);
+
+error:
+  Py_XDECREF (arglist);
+  Py_XDECREF (ptid_obj);
+  Py_XDECREF (callback);
+  Py_XDECREF (result);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_pid_to_str callback."));
+    }
+
+  do_cleanups (cleanup);
+  return scratch_buf;
+}
+
+static void py_target_to_fetch_registers (struct target_ops *ops,
+					  struct regcache *regcache, int reg)
+{
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject * self = (PyObject *) target_obj;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+  PyObject *callback = NULL;
+  PyObject *reg_obj  = NULL;
+  PyObject *thread = NULL;
+
+  struct cleanup *cleanup;
+
+  cleanup = ensure_python_env (target_gdbarch (), current_language);
+  HasMethodOrReturnBeneath (self, to_fetch_registers, ops, regcache, reg);
+
+  callback = PyObject_GetAttrString (self, "to_fetch_registers");
+  if (!callback)
+    goto error;
+
+  thread = gdbpy_selected_thread (NULL, NULL);
+  if (!thread)
+    goto error;
+
+  reg_obj = register_to_register_object ((thread_object *) thread, reg);
+  if (!reg_obj)
+    goto error;
+
+  arglist = Py_BuildValue ("(O)", reg_obj);
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (reg_obj);
+  Py_XDECREF (thread);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_fetch_registers callback."));
+    }
+
+  do_cleanups (cleanup);
+}
+
+static void py_target_to_prepare_to_store (struct target_ops *ops,
+					   struct regcache *regcache)
+{
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject * self = (PyObject *) target_obj;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+  PyObject *callback = NULL;
+  PyObject *thread = NULL;
+
+  struct cleanup *cleanup;
+
+  cleanup = ensure_python_env (target_gdbarch (), current_language);
+  HasMethodOrReturnBeneath (self, to_prepare_to_store, ops, regcache);
+
+  callback = PyObject_GetAttrString (self, "to_prepare_to_store");
+  if (!callback)
+    goto error;
+
+  thread = gdbpy_selected_thread (NULL, NULL);
+  if (!thread)
+    goto error;
+
+  arglist = Py_BuildValue ("(O)", thread);
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (thread);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_prepare_to_store callback."));
+    }
+
+  do_cleanups (cleanup);
+}
+
+static void py_target_to_store_registers (struct target_ops *ops,
+					  struct regcache *regcache, int reg)
+{
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject * self = (PyObject *) target_obj;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+  PyObject *callback = NULL;
+  PyObject *reg_obj  = NULL;
+  PyObject *thread = NULL;
+
+  struct cleanup *cleanup;
+
+  cleanup = ensure_python_env (target_gdbarch (), current_language);
+  HasMethodOrReturnBeneath (self, to_store_registers, ops, regcache, reg);
+
+  callback = PyObject_GetAttrString (self, "to_store_registers");
+  if (!callback)
+    goto error;
+
+  thread = gdbpy_selected_thread (NULL, NULL);
+  if (!thread)
+    goto error;
+
+  reg_obj = register_to_register_object ((thread_object *) thread, reg);
+  if (!reg_obj)
+    goto error;
+
+  arglist = Py_BuildValue ("(O)", reg_obj);
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (reg_obj);
+  Py_XDECREF (thread);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_store_registers callback."));
+    }
+
+  do_cleanups (cleanup);
+}
+
+static int
+py_target_to_has_execution (struct target_ops *ops, ptid_t ptid)
+{
+  target_object *target_obj = target_ops_to_target_obj (ops);
+  PyObject * self = (PyObject *) target_obj;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+  PyObject *callback = NULL;
+
+  struct cleanup *cleanup;
+  int ret = 0;
+
+  cleanup = ensure_python_env (target_gdbarch (), current_language);
+  HasMethodOrReturnBeneath (self, to_has_execution, ops, ptid);
+
+  callback = PyObject_GetAttrString (self, "to_has_execution");
+  if (!callback)
+    goto error;
+
+  arglist = Py_BuildValue ("((iii))", ptid.pid, ptid.lwp, ptid.tid);
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+  if (!PyBool_Check (result))
+    {
+      PyErr_SetString (PyExc_RuntimeError,
+		       "to_has_exception callback must return True or False");
+      goto error;
+    }
+
+  ret = (result == Py_True);
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing to_fetch_registers callback."));
+    }
+
+  do_cleanups (cleanup);
+
+  return ret;
+}
+
+static int
 default_true (struct target_ops *ops)
 {
     return 1;
@@ -352,6 +664,12 @@ static void py_target_register_ops(struct target_ops * ops)
     ops->to_thread_name = py_target_to_thread_name;
     ops->to_extra_thread_info = py_target_to_extra_thread_info;
     ops->to_update_thread_list = py_target_to_update_thread_list;
+    ops->to_thread_alive = py_target_to_thread_alive;
+    ops->to_pid_to_str = py_target_to_pid_to_str;
+    ops->to_fetch_registers = py_target_to_fetch_registers;
+    ops->to_has_execution = py_target_to_has_execution;
+    ops->to_store_registers = py_target_to_store_registers;
+    ops->to_prepare_to_store = py_target_to_prepare_to_store;
 
     // This may be the only variable to specify as a parameter in __init__
     ops->to_stratum = thread_stratum;
@@ -361,7 +679,6 @@ static void py_target_register_ops(struct target_ops * ops)
     ops->to_has_memory = default_child_has_memory;
     ops->to_has_stack = default_child_has_stack;
     ops->to_has_registers = default_child_has_registers;
-    ops->to_has_execution = default_child_has_execution;
     default_true(ops);
 
     ops->to_magic = OPS_MAGIC;
