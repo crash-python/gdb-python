@@ -326,6 +326,55 @@ thpy_get_info (PyObject *self, void *closure)
   return info;
 }
 
+static PyObject *
+thpy_get_executing (PyObject *self, void *closure)
+{
+  thread_object *obj = (thread_object *) self;
+  PyObject *ret = Py_False;
+
+  THPY_REQUIRE_VALID(obj);
+
+  if (obj->thread->executing)
+    ret = Py_True;
+
+  Py_INCREF(ret);
+  return ret;
+}
+
+static int
+thpy_set_executing (PyObject *self, PyObject *newvalue, void *ignore)
+{
+  thread_object *thread_obj = (thread_object *) self;
+  PyObject *value;
+
+  if (!thread_obj->thread)
+    {
+      PyErr_SetString (PyExc_RuntimeError, _("Thread no longer exists."));
+      return -1;
+    }
+
+  if (!PyBool_Check (newvalue))
+    {
+      PyErr_SetString (PyExc_TypeError, "requires Bool");
+      return -1;
+    }
+
+  TRY
+    {
+      /*
+       * We do a needless search here, but we can't set
+       * threads_executing directly.
+       */
+      set_executing (thread_obj->thread->ptid, newvalue == Py_True);
+    }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_SET_HANDLE_EXCEPTION (except);
+    }
+  END_CATCH
+  return 0;
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -392,6 +441,7 @@ static PyGetSetDef thread_object_getset[] =
     "The Inferior object this thread belongs to.", NULL },
   { "registers", thpy_get_registers, NULL, "Registers for this thread.", NULL },
   { "info", thpy_get_info, NULL, "Info associated with thread", NULL },
+  { "executing", thpy_get_executing, thpy_set_executing, "Execution state of this thread.", NULL },
 
   { NULL }
 };
