@@ -911,6 +911,7 @@ target_init (PyObject *self, PyObject *args, PyObject *kw)
     TRY
       {
 	py_target_register_ops (ops);
+	init_thread_list ();
       }
     CATCH (except, RETURN_MASK_ALL)
       {
