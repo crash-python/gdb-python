@@ -1,6 +1,7 @@
 import gdb
 from kdumpfile import kdumpfile
 from util import list_for_each_entry
+from kdumpfile.exceptions import *
 
 #arch = "i386:x86-64"
 #
@@ -77,9 +78,9 @@ class Target(gdb.Target):
 		r = self.kdump.read (self.kdump.KDUMP_KVADDR, offset, ln)
 		readbuf[:] = r
 		ret = ln
-	    except EOFError, e:
+	    except EOFException, e:
 		raise gdb.TargetXferEof(str(e))
-	    except IndexError, e:
+	    except NoDataException, e:
 		raise gdb.TargetXferUnavailable(str(e))
 	else:
 	    raise IOError("Unknown obj type")
