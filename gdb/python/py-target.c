@@ -908,7 +908,15 @@ target_init (PyObject *self, PyObject *args, PyObject *kw)
 
     ENTRY();
 
-    py_target_register_ops(ops);
+    TRY
+      {
+	py_target_register_ops (ops);
+      }
+    CATCH (except, RETURN_MASK_ALL)
+      {
+	GDB_PY_SET_HANDLE_EXCEPTION (except);
+      }
+    END_CATCH
 
     /* We have registered our structure on the target stack
      * Our object needs to persist while it is registered
