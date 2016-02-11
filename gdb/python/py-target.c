@@ -128,19 +128,23 @@ char *py_target_to_thread_name (struct target_ops *ops,
     callback = PyObject_GetAttrString (self, "to_thread_name");
     if (!callback)
       goto error;
+    make_cleanup_py_decref (callback);
 
     thread = gdbpy_selected_thread (NULL, NULL);
     if (!thread)
       goto error;
+    make_cleanup_py_decref (thread);
 
     /* Time to call the callback */
     arglist = Py_BuildValue ("(O)", thread);
     if (!arglist)
       goto error;
+    make_cleanup_py_decref (arglist);
 
     result = PyObject_Call (callback, arglist, NULL);
     if (!result)
       goto error;
+    make_cleanup_py_decref (result);
 
     /*
      * GDB will raise an exception that the caller will catch.
@@ -155,11 +159,6 @@ char *py_target_to_thread_name (struct target_ops *ops,
     xfree ((void *) host_string);
 
 error:
-    Py_XDECREF (result);
-    Py_XDECREF (arglist);
-    Py_XDECREF (thread);
-    Py_XDECREF (callback);
-
     if (PyErr_Occurred ())
       {
 	gdbpy_print_stack ();
@@ -419,19 +418,22 @@ static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
   callback = PyObject_GetAttrString (self, "to_pid_to_str");
   if (!callback)
     goto error;
+  make_cleanup_py_decref (callback);
 
   ptid_obj = gdbpy_create_ptid_object (ptid);
   if (!ptid_obj)
     goto error;
+  make_cleanup_py_decref (ptid_obj);
 
   arglist = Py_BuildValue ("(O)", ptid_obj);
   if (!arglist)
     goto error;
+  make_cleanup_py_decref (arglist);
 
   result = PyObject_Call (callback, arglist, NULL);
-
   if (!result)
     goto error;
+  make_cleanup_py_decref (result);
 
   ret = python_string_to_host_string (result);
   if (!ret)
@@ -442,11 +444,6 @@ static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
   xfree (ret);
 
 error:
-  Py_XDECREF (arglist);
-  Py_XDECREF (ptid_obj);
-  Py_XDECREF (callback);
-  Py_XDECREF (result);
-
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
@@ -476,29 +473,29 @@ static void py_target_to_fetch_registers (struct target_ops *ops,
   callback = PyObject_GetAttrString (self, "to_fetch_registers");
   if (!callback)
     goto error;
+  make_cleanup_py_decref (callback);
 
   thread = gdbpy_selected_thread (NULL, NULL);
   if (!thread)
     goto error;
+  make_cleanup_py_decref (thread);
 
   reg_obj = register_to_register_object ((thread_object *) thread, reg);
   if (!reg_obj)
     goto error;
+  make_cleanup_py_decref (reg_obj);
 
   arglist = Py_BuildValue ("(O)", reg_obj);
   if (!arglist)
     goto error;
+  make_cleanup_py_decref (arglist);
 
   result = PyObject_Call (callback, arglist, NULL);
   if (!result)
     goto error;
+  make_cleanup_py_decref (result);
 
 error:
-  Py_XDECREF (result);
-  Py_XDECREF (arglist);
-  Py_XDECREF (reg_obj);
-  Py_XDECREF (thread);
-  Py_XDECREF (callback);
 
   if (PyErr_Occurred ())
     {
@@ -527,25 +524,24 @@ static void py_target_to_prepare_to_store (struct target_ops *ops,
   callback = PyObject_GetAttrString (self, "to_prepare_to_store");
   if (!callback)
     goto error;
+  make_cleanup_py_decref (callback);
 
   thread = gdbpy_selected_thread (NULL, NULL);
   if (!thread)
     goto error;
+  make_cleanup_py_decref (thread);
 
   arglist = Py_BuildValue ("(O)", thread);
   if (!arglist)
     goto error;
+  make_cleanup_py_decref (arglist);
 
   result = PyObject_Call (callback, arglist, NULL);
   if (!result)
     goto error;
+  make_cleanup_py_decref (result);
 
 error:
-  Py_XDECREF (result);
-  Py_XDECREF (arglist);
-  Py_XDECREF (thread);
-  Py_XDECREF (callback);
-
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
@@ -574,30 +570,29 @@ static void py_target_to_store_registers (struct target_ops *ops,
   callback = PyObject_GetAttrString (self, "to_store_registers");
   if (!callback)
     goto error;
+  make_cleanup_py_decref (callback);
 
   thread = gdbpy_selected_thread (NULL, NULL);
   if (!thread)
     goto error;
+  make_cleanup_py_decref (thread);
 
   reg_obj = register_to_register_object ((thread_object *) thread, reg);
   if (!reg_obj)
     goto error;
+  make_cleanup_py_decref (reg_obj);
 
   arglist = Py_BuildValue ("(O)", reg_obj);
   if (!arglist)
     goto error;
+  make_cleanup_py_decref (arglist);
 
   result = PyObject_Call (callback, arglist, NULL);
   if (!result)
     goto error;
+  make_cleanup_py_decref (result);
 
 error:
-  Py_XDECREF (result);
-  Py_XDECREF (arglist);
-  Py_XDECREF (reg_obj);
-  Py_XDECREF (thread);
-  Py_XDECREF (callback);
-
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
