@@ -249,6 +249,13 @@ py_target_to_xfer_partial (struct target_ops *ops,
     }
 
     lret = PyLong_AsUnsignedLongLong (ret);
+    if (PyErr_Occurred ())
+      {
+	PyErr_SetString(PyExc_RuntimeError,
+			"to_xfer_partial callback must return long");
+	goto error;
+      }
+
     if (gdb_readbuf)
       {
 	const char *str = PyByteArray_AsString (readbuf);
@@ -366,7 +373,14 @@ py_target_to_thread_alive (struct target_ops *ops, ptid_t ptid)
   if (!result)
     goto error;
 
-  ret = PyInt_AsLong (result);
+  if (!PyBool_Check (result))
+    {
+      PyErr_SetString (PyExc_RuntimeError,
+		       "to_thread_alive callback must return True or False");
+      goto error;
+    }
+
+  ret = (result == Py_True);
 
 error:
   Py_XDECREF (result);
