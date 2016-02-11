@@ -102,7 +102,13 @@ static target_object * target_ops_to_target_obj(struct target_ops *ops)
 	    return ops->op(ops, ##args);			\
 	}
 
-static char scratch_buf[4096];
+static char *
+xstrdup_realloc (const char *s, char *buf)
+{
+  size_t len = strlen (s) + 1;
+  char *ret = XRESIZEVEC (char, buf, len);
+  return (char *) memcpy (ret, s, len);
+}
 
 static const
 char *py_target_to_thread_name (struct target_ops *ops,
@@ -114,16 +120,14 @@ char *py_target_to_thread_name (struct target_ops *ops,
     PyObject *result   = NULL;
     PyObject *callback = NULL;
     PyObject *thread   = NULL;
+    char *name = NULL;
+    static char *static_buf;
 
     struct cleanup *cleanup;
-    char *host_string = NULL;
 
     cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     HasMethodOrReturnBeneath (self, to_thread_name, ops, info);
-
-    /* (re-)initialise the static string before use in case of error */
-    scratch_buf[0] = '\0';
 
     callback = PyObject_GetAttrString (self, "to_thread_name");
     if (!callback)
@@ -146,17 +150,13 @@ char *py_target_to_thread_name (struct target_ops *ops,
       goto error;
     make_cleanup_py_decref (result);
 
-    /*
-     * GDB will raise an exception that the caller will catch.
-     * Python will raise an exception and return NULL.
-     */
-    host_string = python_string_to_host_string (result);
-    if (!host_string)
+    name = python_string_to_host_string (result);
+    if (!name)
       goto error;
+    make_cleanup (xfree, name);
 
-    strncpy (scratch_buf, host_string, sizeof (scratch_buf) - 1);
-    scratch_buf[sizeof(scratch_buf) - 1] = '\0';
-    xfree ((void *) host_string);
+    static_buf = xstrdup_realloc (name, static_buf);
+    name = static_buf;
 
 error:
     if (PyErr_Occurred ())
@@ -166,7 +166,7 @@ error:
       }
 
     do_cleanups (cleanup);
-    return scratch_buf;
+    return name;
 }
 
 static enum target_xfer_status
@@ -408,12 +408,11 @@ static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
   PyObject *callback = NULL;
 
   struct cleanup *cleanup;
-  char *ret;
+  static char *static_buf;
+  char *ret = NULL;
 
   cleanup = ensure_python_env (target_gdbarch (), current_language);
   HasMethodOrReturnBeneath (self, to_pid_to_str, ops, ptid);
-
-  scratch_buf[0] = '\0';
 
   callback = PyObject_GetAttrString (self, "to_pid_to_str");
   if (!callback)
@@ -438,10 +437,10 @@ static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
   ret = python_string_to_host_string (result);
   if (!ret)
     goto error;
+  make_cleanup (xfree, ret);
 
-  strncpy (scratch_buf, ret, sizeof (scratch_buf) - 1);
-  scratch_buf[sizeof (scratch_buf) - 1] = '\0';
-  xfree (ret);
+  static_buf = xstrdup_realloc (ret, static_buf);
+  ret = static_buf;
 
 error:
   if (PyErr_Occurred ())
@@ -451,7 +450,7 @@ error:
     }
 
   do_cleanups (cleanup);
-  return scratch_buf;
+  return ret;
 }
 
 static void py_target_to_fetch_registers (struct target_ops *ops,
