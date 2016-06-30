@@ -49,6 +49,16 @@ extern PyTypeObject target_object_type
 #define THPY_REQUIRE_VALID_INT(Target)				\
 	THPY_REQUIRE_VALID_RETURN(Target, 0)
 
+#define THPY_REQUIRE_PYTHON_TARGET(target, ret)			\
+  do {								\
+    if (target->ops != &target->python_ops)			\
+    {								\
+      PyErr_SetString (PyExc_AttributeError,			\
+		_("Property is read-only on native targets."));	\
+      return ret;						\
+    }								\
+  } while (0)
+
 /* Container of, courtesy of Linux Kernel for now */
 #ifndef offsetof
 #define offsetof(TYPE, MEMBER) ((size_t) &(((TYPE *) 0)->MEMBER))
@@ -88,7 +98,18 @@ extern PyTypeObject target_object_type
  */
 static target_object * target_ops_to_target_obj(struct target_ops *ops)
 {
-    return container_of(ops, target_object, ops);
+    target_object *target_obj;
+
+    if (ops->to_data == &target_object_type) {
+	target_obj = container_of(ops, target_object, python_ops);
+	return target_obj;
+    }
+
+    target_obj = PyObject_New (target_object, &target_object_type);
+    if (target_obj)
+      target_obj->ops = ops;
+
+    return target_obj;
 }
 
 
@@ -691,6 +712,8 @@ static void py_target_register_ops(struct target_ops * ops)
 
     ops->to_magic = OPS_MAGIC;
 
+    ops->to_data = &target_object_type;
+
     /* Install any remaining operations as delegators */
     complete_target_initialization (ops);
 
@@ -727,7 +750,7 @@ tgt_py_get_name (PyObject *self, void * arg)
 {
   enum target_names target_string = (enum target_names) arg;
   target_object *target_obj = (target_object *) self;
-  struct target_ops *ops = &target_obj->ops;
+  struct target_ops *ops = target_obj->ops;
 
   PyObject *name;
 
@@ -768,8 +791,10 @@ tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
 {
   enum target_names target_string = (enum target_names) arg;
   target_object *target_obj = (target_object *) self;
-  struct target_ops *ops = &target_obj->ops;
+  struct target_ops *ops = target_obj->ops;
   char *name = NULL;
+
+  THPY_REQUIRE_PYTHON_TARGET (target_obj, 0);
 
   THPY_REQUIRE_VALID_INT (target_obj);
 
@@ -912,13 +937,13 @@ static int
 target_init (PyObject *self, PyObject *args, PyObject *kw)
 {
     target_object *target_obj = (target_object *) self;
-    struct target_ops *ops = &target_obj->ops;
 
     ENTRY();
 
     TRY
       {
-	py_target_register_ops (ops);
+	target_obj->ops = &target_obj->python_ops;
+	py_target_register_ops (&target_obj->python_ops);
 	init_thread_list ();
       }
     CATCH (except, RETURN_MASK_ALL)
@@ -1025,3 +1050,15 @@ PyTypeObject target_object_type =
   target_init,			  /* tp_init */
   0				  /* tp_alloc */
 };
+
+PyObject *
+gdbpy_current_target (PyObject *self, PyObject *args)
+{
+  struct target_ops *ops = current_target.beneath;
+  target_object *obj = target_ops_to_target_obj(ops);
+
+  if (obj->ops->to_data == &target_object_type)
+	  Py_INCREF(obj);
+
+  return (PyObject *)obj;
+}

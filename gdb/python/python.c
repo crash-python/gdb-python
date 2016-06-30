@@ -2088,6 +2088,9 @@ Return the selected inferior object." },
   { "inferiors", gdbpy_inferiors, METH_NOARGS,
     "inferiors () -> (gdb.Inferior, ...).\n\
 Return a tuple containing all inferiors." },
+  { "current_target", gdbpy_current_target, METH_NOARGS,
+     "current_target () -> gdb.Target.\n\
+Return the current target object." },
   {NULL, NULL, 0, NULL}
 };
 
