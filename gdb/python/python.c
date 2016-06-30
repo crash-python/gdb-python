@@ -2094,6 +2094,9 @@ Return a tuple containing all inferiors." },
 Invalidate any cached frame objects in gdb.\n\
 Intended for internal use only." },
 
+  { "current_target", gdbpy_current_target, METH_NOARGS,
+     "current_target () -> gdb.Target.\n\
+Return the current target object." },
   {NULL, NULL, 0, NULL}
 };
 
