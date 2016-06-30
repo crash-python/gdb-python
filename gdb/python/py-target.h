@@ -27,7 +27,9 @@ typedef struct
   PyObject_HEAD
 
   /* The target operations we represent.  */
-  struct target_ops ops;
+  struct target_ops *ops;
+
+  struct target_ops python_ops;
 
 } target_object;
 
