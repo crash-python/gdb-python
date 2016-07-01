@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Frame-filter commands.
 # Copyright (C) 2013-2016 Free Software Foundation, Inc.
 

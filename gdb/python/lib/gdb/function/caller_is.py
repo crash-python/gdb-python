@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Caller-is functions.
 # Copyright (C) 2008-2016 Free Software Foundation, Inc.
 
