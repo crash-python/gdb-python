@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Pretty-printers for bounds registers.
 # Copyright (C) 2013-2017 Free Software Foundation, Inc.
 

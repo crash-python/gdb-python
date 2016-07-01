@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Python side of the support for xmethods.
 # Copyright (C) 2013-2017 Free Software Foundation, Inc.
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Extended prompt utilities.
 # Copyright (C) 2011-2017 Free Software Foundation, Inc.
 

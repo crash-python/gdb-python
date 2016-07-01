@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Pretty-printer commands.
 # Copyright (C) 2010-2017 Free Software Foundation, Inc.
 
