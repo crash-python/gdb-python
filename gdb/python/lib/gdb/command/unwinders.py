@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Unwinder commands.
 # Copyright 2015-2017 Free Software Foundation, Inc.
 
