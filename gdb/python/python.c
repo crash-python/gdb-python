@@ -1121,8 +1121,8 @@ gdbpy_write (PyObject *self, PyObject *args, PyObject *kw)
   static char *keywords[] = {"text", "stream", NULL };
   int stream_type = 0;
 
-  if (! PyArg_ParseTupleAndKeywords (args, kw, "s|i", keywords, &arg,
-				     &stream_type))
+  if (! PyArg_ParseTupleAndKeywords (args, kw, "es|i", keywords, "utf-8",
+				     &arg, &stream_type))
     return NULL;
 
   TRY
