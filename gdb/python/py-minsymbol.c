@@ -319,6 +319,9 @@ gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args, PyObject *kw)
   static char *keywords[] = { "name", "sfile", "objfile", NULL };
   struct bound_minimal_symbol bound_minsym = {};
   PyObject *msym_obj = NULL, *sfile_obj = NULL, *objfile_obj = NULL;
+#if PY_MAJOR_VERSION >= 3
+  PyObject *temp = NULL;
+#endif
 
   if (!PyArg_ParseTupleAndKeywords (args, kw, "s|OO", keywords, &name,
 				    &sfile_obj, &objfile_obj))
@@ -326,16 +329,33 @@ gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args, PyObject *kw)
 
   if (sfile_obj && sfile_obj != Py_None)
     {
-      sfile = PyString_AsString (sfile_obj);
-      if (!sfile)
-	return NULL;
+#if PY_MAJOR_VERSION >= 3
+	  temp = PyUnicode_AsASCIIString(sfile_obj);
+	  if (!temp)
+		  return NULL;
+
+      sfile = PyBytes_AsString(temp); 
+#else
+	  sfile = PyString_AsString(sfile_obj);
+#endif
+
+      if (!sfile) {
+#if PY_MAJOR_VERSION >= 3
+		Py_DECREF(temp); 
+#endif
+		return NULL;
+	  }
     }
 
   if (objfile_obj && objfile_obj != Py_None)
     {
       objfile = objfpy_object_to_objfile (objfile_obj);
-      if (!objfile)
-	return NULL;
+      if (!objfile) {
+#if PY_MAJOR_VERSION >= 3
+		Py_DECREF(temp);
+#endif
+		return NULL;
+	  }
     }
 
   TRY
@@ -347,6 +367,10 @@ gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args, PyObject *kw)
       GDB_PY_HANDLE_EXCEPTION (except);
     }
   END_CATCH
+
+#if PY_MAJOR_VERSION >= 3
+  Py_XDECREF(temp);
+#endif
 
   if (bound_minsym.minsym)
       msym_obj = bound_minsym_to_minsym_object (&bound_minsym);
