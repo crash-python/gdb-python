@@ -31,6 +31,6 @@ typedef struct
 
   struct target_ops python_ops;
 
-} target_object;
+} pytarget_object;
 
 #endif /* GDB_PY_TARGET_H */
