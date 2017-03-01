@@ -748,9 +748,10 @@ enum target_names {
 static PyObject *
 tgt_py_get_name (PyObject *self, void * arg)
 {
-  enum target_names target_string = (enum target_names) (unsigned long)arg;
+  enum target_names target_string = (enum target_names) (intptr_t)arg;
   pytarget_object *target_obj = (pytarget_object *) self;
   struct target_ops *ops = target_obj->ops;
+
 
   PyObject *name;
 
@@ -789,7 +790,7 @@ tgt_py_get_name (PyObject *self, void * arg)
 static int
 tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
 {
-  enum target_names target_string = (enum target_names)(unsigned long) arg;
+  enum target_names target_string = (enum target_names) (intptr_t)arg;
   pytarget_object *target_obj = (pytarget_object *) self;
   struct target_ops *ops = target_obj->ops;
   char *name = NULL;

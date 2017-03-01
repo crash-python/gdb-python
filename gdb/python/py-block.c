@@ -147,8 +147,7 @@ PyObject* DictIter_iternext(PyObject *self)
 }
 
 static PyTypeObject DictIterType = {
-PyObject_HEAD_INIT(NULL)
-0,                         /*ob_size*/
+PyVarObject_HEAD_INIT (NULL, 0)
 "gdb._DictIter",            /*tp_name*/
 sizeof(DictIter),       /*tp_basicsize*/
 0,                         /*tp_itemsize*/
@@ -174,8 +173,7 @@ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_ITER,
 0,  /* tp_richcompare */
 0,  /* tp_weaklistoffset */
 DictIter_iter,  /* tp_iter: __iter__() method */
-DictIter_iternext  /* tp_iternext: next() method */,
-.tp_new = PyType_GenericNew
+DictIter_iternext  /* tp_iternext: next() method */
 };                                                                                                                                                                 
 
 static PyObject *
@@ -538,6 +536,7 @@ gdbpy_initialize_blocks (void)
   if (PyType_Ready (&block_syms_iterator_object_type) < 0)
     return -1;
 
+  DictIterType.tp_new = PyType_GenericNew;
   if (PyType_Ready(&DictIterType) < 0)  return -1;
   /* Register an objfile "free" callback so we can properly
      invalidate blocks when an object file is about to be
