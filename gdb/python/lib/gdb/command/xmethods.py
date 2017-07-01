@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Xmethod commands.
 # Copyright 2013-2017 Free Software Foundation, Inc.
 
