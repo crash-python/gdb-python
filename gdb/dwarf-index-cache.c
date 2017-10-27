@@ -93,7 +93,7 @@ index_cache::store (struct dwarf2_per_objfile *dwarf2_per_objfile)
   if (!enabled ())
     return;
 
-  const bfd_build_id *build_id = build_id_bfd_get (obj->obfd);
+  const bfd_build_id *build_id = build_id_bfd_shdr_get (obj->obfd);
   if (build_id == nullptr)
     {
       if (debug_index_cache)

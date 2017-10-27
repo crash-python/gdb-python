@@ -132,7 +132,7 @@ objfpy_get_build_id (PyObject *self, void *closure)
 
   try
     {
-      build_id = build_id_bfd_get (objfile->obfd);
+      build_id = build_id_bfd_shdr_get (objfile->obfd);
     }
   catch (const gdb_exception &except)
     {
@@ -533,7 +533,7 @@ objfpy_lookup_objfile_by_build_id (const char *build_id)
       /* Don't return separate debug files.  */
       if (objfile->separate_debug_objfile_backlink != NULL)
 	continue;
-      obfd_build_id = build_id_bfd_get (objfile->obfd);
+      obfd_build_id = build_id_bfd_shdr_get (objfile->obfd);
       if (obfd_build_id == NULL)
 	continue;
       if (objfpy_build_id_matches (obfd_build_id, build_id))
