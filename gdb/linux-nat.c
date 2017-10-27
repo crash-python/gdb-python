@@ -1098,7 +1098,16 @@ linux_nat_target::create_inferior (const char *exec_file,
   /* Make sure we report all signals during startup.  */
   pass_signals ({});
 
-  inf_ptrace_target::create_inferior (exec_file, allargs, env, from_tty);
+  try
+    {
+      inf_ptrace_target::create_inferior (exec_file, allargs, env, from_tty);
+    }
+  catch (const gdb_exception_error &ex)
+    {
+      std::string result =  linux_ptrace_create_warnings ();
+
+      throw_error (ex.error, "%s%s", result.c_str (), ex.what ());
+    }
 }
 
 /* Callback for linux_proc_attach_tgid_threads.  Attach to PTID if not
