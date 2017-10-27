@@ -489,7 +489,7 @@ static void
 mips_xfer_register (struct gdbarch *gdbarch, struct regcache *regcache,
 		    int reg_num, int length,
 		    enum bfd_endian endian, gdb_byte *in,
-		    const gdb_byte *out, int buf_offset)
+		    const gdb_byte *out, LONGEST buf_offset)
 {
   int reg_offset = 0;
 
@@ -512,8 +512,8 @@ mips_xfer_register (struct gdbarch *gdbarch, struct regcache *regcache,
     }
   if (mips_debug)
     fprintf_unfiltered (gdb_stderr,
-			"xfer $%d, reg offset %d, buf offset %d, length %d, ",
-			reg_num, reg_offset, buf_offset, length);
+			"xfer $%d, reg offset %d, buf offset %s, length %d, ",
+			reg_num, reg_offset, plongest (buf_offset), length);
   if (mips_debug && out != NULL)
     {
       int i;
@@ -4563,13 +4563,13 @@ mips_eabi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       gdb_byte ref_valbuf[MAX_MIPS_ABI_REGSIZE];
       struct value *arg = args[argnum];
       struct type *arg_type = check_typedef (value_type (arg));
-      int len = TYPE_LENGTH (arg_type);
+      LONGEST len = TYPE_LENGTH (arg_type);
       enum type_code typecode = TYPE_CODE (arg_type);
 
       if (mips_debug)
 	fprintf_unfiltered (gdb_stdlog,
-			    "mips_eabi_push_dummy_call: %d len=%d type=%d",
-			    argnum + 1, len, (int) typecode);
+			    "mips_eabi_push_dummy_call: %d len=%s type=%d",
+			    argnum + 1, plongest (len), (int) typecode);
 
       /* The EABI passes structures that do not fit in a register by
          reference.  */
@@ -4839,7 +4839,7 @@ mips_eabi_return_value (struct gdbarch *gdbarch, struct value *function,
 
 static int
 mips_n32n64_fp_arg_chunk_p (struct gdbarch *gdbarch, struct type *arg_type,
-			    int offset)
+			    LONGEST offset)
 {
   int i;
 
@@ -4854,7 +4854,7 @@ mips_n32n64_fp_arg_chunk_p (struct gdbarch *gdbarch, struct type *arg_type,
 
   for (i = 0; i < TYPE_NFIELDS (arg_type); i++)
     {
-      int pos;
+      LONGEST pos;
       struct type *field_type;
 
       /* We're only looking at normal fields.  */
@@ -4897,7 +4897,7 @@ mips_n32n64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argreg;
   int float_argreg;
   int argnum;
-  int arg_space = 0;
+  LONGEST arg_space = 0;
   int stack_offset = 0;
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
@@ -5249,11 +5249,11 @@ mips_n32n64_return_value (struct gdbarch *gdbarch, struct value *function,
 				: MIPS_V0_REGNUM);
 	   field < TYPE_NFIELDS (type); field++, regnum += 2)
 	{
-	  int offset = (FIELD_BITPOS (TYPE_FIELDS (type)[field])
-			/ TARGET_CHAR_BIT);
+	  LONGEST offset = (FIELD_BITPOS (TYPE_FIELDS (type)[field])
+			    / TARGET_CHAR_BIT);
 	  if (mips_debug)
-	    fprintf_unfiltered (gdb_stderr, "Return float struct+%d\n",
-				offset);
+	    fprintf_unfiltered (gdb_stderr, "Return float struct+%s\n",
+				plongest (offset));
 	  if (TYPE_LENGTH (TYPE_FIELD_TYPE (type, field)) == 16)
 	    {
 	      /* A 16-byte long double field goes in two consecutive
@@ -5295,8 +5295,8 @@ mips_n32n64_return_value (struct gdbarch *gdbarch, struct value *function,
 	  if (offset + xfer > TYPE_LENGTH (type))
 	    xfer = TYPE_LENGTH (type) - offset;
 	  if (mips_debug)
-	    fprintf_unfiltered (gdb_stderr, "Return struct+%d:%d in $%d\n",
-				offset, xfer, regnum);
+	    fprintf_unfiltered (gdb_stderr, "Return struct+%s:%d in $%d\n",
+				plongest (offset), xfer, regnum);
 	  mips_xfer_register (gdbarch, regcache,
 			      gdbarch_num_regs (gdbarch) + regnum,
 			      xfer, BFD_ENDIAN_UNKNOWN, readbuf, writebuf,
@@ -5355,7 +5355,7 @@ mips_o32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argreg;
   int float_argreg;
   int argnum;
-  int arg_space = 0;
+  LONGEST arg_space = 0;
   int stack_offset = 0;
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
@@ -5420,13 +5420,13 @@ mips_o32_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       const gdb_byte *val;
       struct value *arg = args[argnum];
       struct type *arg_type = check_typedef (value_type (arg));
-      int len = TYPE_LENGTH (arg_type);
+      LONGEST len = TYPE_LENGTH (arg_type);
       enum type_code typecode = TYPE_CODE (arg_type);
 
       if (mips_debug)
 	fprintf_unfiltered (gdb_stdlog,
-			    "mips_o32_push_dummy_call: %d len=%d type=%d",
-			    argnum + 1, len, (int) typecode);
+			    "mips_o32_push_dummy_call: %d len=%s type=%d",
+			    argnum + 1, plongest (len), (int) typecode);
 
       val = value_contents (arg);
 
@@ -5880,8 +5880,8 @@ mips_o64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   int argreg;
   int float_argreg;
   int argnum;
-  int arg_space = 0;
-  int stack_offset = 0;
+  LONGEST arg_space = 0;
+  LONGEST stack_offset = 0;
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   CORE_ADDR func_addr = find_function_addr (function, NULL);
 
@@ -5942,13 +5942,13 @@ mips_o64_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       const gdb_byte *val;
       struct value *arg = args[argnum];
       struct type *arg_type = check_typedef (value_type (arg));
-      int len = TYPE_LENGTH (arg_type);
+      LONGEST len = TYPE_LENGTH (arg_type);
       enum type_code typecode = TYPE_CODE (arg_type);
 
       if (mips_debug)
 	fprintf_unfiltered (gdb_stdlog,
-			    "mips_o64_push_dummy_call: %d len=%d type=%d",
-			    argnum + 1, len, (int) typecode);
+			    "mips_o64_push_dummy_call: %d len=%s type=%d",
+			    argnum + 1, plongest (len), (int) typecode);
 
       val = value_contents (arg);
 

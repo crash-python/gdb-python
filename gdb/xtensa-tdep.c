@@ -1689,18 +1689,18 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
 			CORE_ADDR struct_addr)
 {
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-  int size, onstack_size;
+  LONGEST size, onstack_size;
   gdb_byte *buf = (gdb_byte *) alloca (16);
   CORE_ADDR ra, ps;
   struct argument_info
   {
     const bfd_byte *contents;
-    int length;
+    ssize_t length;
     int onstack;		/* onstack == 0 => in reg */
     int align;			/* alignment */
     union
     {
-      int offset;		/* stack offset if on stack.  */
+      ssize_t offset;		/* stack offset if on stack.  */
       int regno;		/* regno if in register.  */
     } u;
   };
@@ -1794,8 +1794,8 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
 	  info->align = TYPE_LENGTH (builtin_type (gdbarch)->builtin_long);
 	  break;
 	}
-      info->length = TYPE_LENGTH (arg_type);
       info->contents = value_contents (arg);
+      info->length = TYPE_LENGTH (arg_type);
 
       /* Align size and onstack_size.  */
       size = (size + info->align - 1) & ~(info->align - 1);
@@ -1840,7 +1840,7 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
 
       if (info->onstack)
 	{
-	  int n = info->length;
+	  ssize_t n = info->length;
 	  CORE_ADDR offset = sp + info->u.offset;
 
 	  /* Odd-sized structs are aligned to the lower side of a memory
@@ -1856,7 +1856,7 @@ xtensa_push_dummy_call (struct gdbarch *gdbarch,
 	}
       else
 	{
-	  int n = info->length;
+	  ssize_t n = info->length;
 	  const bfd_byte *cp = info->contents;
 	  int r = info->u.regno;
 
