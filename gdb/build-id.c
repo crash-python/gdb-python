@@ -650,7 +650,10 @@ build_id_to_debug_bfd (size_t build_id_len, const bfd_byte *build_id,
 	  abfd = gdb_bfd_open (filename.get(), gnutarget, -1);
 
 	  if (abfd == NULL)
-	    continue;
+	    {
+	      filename = NULL;
+	      continue;
+	    }
 
 	  if (build_id_verify (abfd.get(), build_id_len, build_id))
 	    break;
