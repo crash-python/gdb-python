@@ -245,6 +245,7 @@ case ${gdb_host} in
 		;;
 	    i386)
 		# Host: Intel 386 running GNU/Linux.
+		NAT_FILE="${srcdir}/config/${gdb_host_cpu}/nm-linux.h"
 		NATDEPFILES="${NATDEPFILES} x86-nat.o nat/x86-dregs.o \
 		i386-linux-nat.o x86-linux-nat.o nat/linux-btrace.o \
 		nat/x86-linux.o nat/x86-linux-dregs.o"
@@ -301,6 +302,7 @@ case ${gdb_host} in
 	case ${gdb_host_cpu} in
 	    i386)
 		# Host: GNU/Linux x86-64
+		NAT_FILE="${srcdir}/config/${gdb_host_cpu}/nm-linux64.h"
 		NATDEPFILES="${NATDEPFILES} x86-nat.o nat/x86-dregs.o \
 		amd64-nat.o amd64-linux-nat.o x86-linux-nat.o \
 		nat/linux-btrace.o \
