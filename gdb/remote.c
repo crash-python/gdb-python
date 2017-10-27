@@ -440,7 +440,7 @@ public:
 
   bool stopped_data_address (CORE_ADDR *) override;
 
-  bool watchpoint_addr_within_range (CORE_ADDR, CORE_ADDR, int) override;
+  bool watchpoint_addr_within_range (CORE_ADDR, CORE_ADDR, LONGEST) override;
 
   int can_use_hw_breakpoint (enum bptype, int, int) override;
 
@@ -10298,7 +10298,7 @@ remote_target::insert_watchpoint (CORE_ADDR addr, int len,
   p = strchr (rs->buf.data (), '\0');
   addr = remote_address_masked (addr);
   p += hexnumstr (p, (ULONGEST) addr);
-  xsnprintf (p, endbuf - p, ",%x", len);
+  xsnprintf (p, endbuf - p, ",%s", phex_nz (len, sizeof (len)));
 
   putpkt (rs->buf);
   getpkt (&rs->buf, 0);
@@ -10318,7 +10318,7 @@ remote_target::insert_watchpoint (CORE_ADDR addr, int len,
 
 bool
 remote_target::watchpoint_addr_within_range (CORE_ADDR addr,
-					     CORE_ADDR start, int length)
+					     CORE_ADDR start, LONGEST length)
 {
   CORE_ADDR diff = remote_address_masked (addr - start);
 
@@ -10347,7 +10347,7 @@ remote_target::remove_watchpoint (CORE_ADDR addr, int len,
   p = strchr (rs->buf.data (), '\0');
   addr = remote_address_masked (addr);
   p += hexnumstr (p, (ULONGEST) addr);
-  xsnprintf (p, endbuf - p, ",%x", len);
+  xsnprintf (p, endbuf - p, ",%s", phex_nz (len, sizeof (len)));
   putpkt (rs->buf);
   getpkt (&rs->buf, 0);
 

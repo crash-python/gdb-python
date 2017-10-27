@@ -1546,7 +1546,7 @@ procfs_address_to_host_pointer (CORE_ADDR addr)
 }
 
 static int
-proc_set_watchpoint (procinfo *pi, CORE_ADDR addr, int len, int wflags)
+proc_set_watchpoint (procinfo *pi, CORE_ADDR addr, LONGEST len, int wflags)
 {
   struct {
     procfs_ctl_t cmd;
@@ -3232,7 +3232,7 @@ procfs_target::pid_to_exec_file (int pid)
 /* Insert a watchpoint.  */
 
 static int
-procfs_set_watchpoint (ptid_t ptid, CORE_ADDR addr, int len, int rwflag,
+procfs_set_watchpoint (ptid_t ptid, CORE_ADDR addr, LONGEST len, int rwflag,
 		       int after)
 {
   int       pflags = 0;
