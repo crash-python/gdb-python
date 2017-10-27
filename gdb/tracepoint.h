@@ -269,7 +269,7 @@ public:
 			   CORE_ADDR scope);
   void add_memrange (struct gdbarch *gdbarch,
 		     int type, bfd_signed_vma base,
-		     unsigned long len, CORE_ADDR scope);
+		     ULONGEST len, CORE_ADDR scope);
   void collect_symbol (struct symbol *sym,
 		       struct gdbarch *gdbarch,
 		       long frame_regno, long frame_offset,

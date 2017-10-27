@@ -81,7 +81,7 @@ static enum oload_classification classify_oload_match
   (const badness_vector &, int, int);
 
 static struct value *value_struct_elt_for_reference (struct type *,
-						     int, struct type *,
+						     LONGEST, struct type *,
 						     const char *,
 						     struct type *,
 						     int, enum noside);
@@ -171,7 +171,7 @@ find_function_in_inferior (const char *name, struct objfile **objf_p)
    space.  */
 
 struct value *
-value_allocate_space_in_inferior (int len)
+value_allocate_space_in_inferior (LONGEST len)
 {
   struct objfile *objf;
   struct value *val = find_function_in_inferior ("malloc", &objf);
@@ -386,12 +386,12 @@ value_cast (struct type *type, struct value *arg2)
   if (code1 == TYPE_CODE_ARRAY)
     {
       struct type *element_type = TYPE_TARGET_TYPE (type);
-      unsigned element_length = TYPE_LENGTH (check_typedef (element_type));
+      ULONGEST element_length = TYPE_LENGTH (check_typedef (element_type));
 
       if (element_length > 0 && TYPE_ARRAY_UPPER_BOUND_IS_UNDEFINED (type))
 	{
 	  struct type *range_type = TYPE_INDEX_TYPE (type);
-	  int val_length = TYPE_LENGTH (type2);
+	  LONGEST val_length = TYPE_LENGTH (type2);
 	  LONGEST low_bound, high_bound, new_length;
 
 	  if (get_discrete_bounds (range_type, &low_bound, &high_bound) < 0)
@@ -1043,7 +1043,7 @@ value_assign (struct value *toval, struct value *fromval)
       {
 	const gdb_byte *dest_buffer;
 	CORE_ADDR changed_addr;
-	int changed_len;
+	LONGEST changed_len;
         gdb_byte buffer[sizeof (LONGEST)];
 
 	if (value_bitsize (toval))
@@ -3335,7 +3335,7 @@ get_baseclass_offset (struct type *vt, struct type *cls,
    the form "DOMAIN::NAME".  */
 
 static struct value *
-value_struct_elt_for_reference (struct type *domain, int offset,
+value_struct_elt_for_reference (struct type *domain, LONGEST offset,
 				struct type *curtype, const char *name,
 				struct type *intype, 
 				int want_address,
@@ -3369,7 +3369,7 @@ value_struct_elt_for_reference (struct type *domain, int offset,
 	  if (want_address)
 	    return value_from_longest
 	      (lookup_memberptr_type (TYPE_FIELD_TYPE (t, i), domain),
-	       offset + (LONGEST) (TYPE_FIELD_BITPOS (t, i) >> 3));
+	       offset + (TYPE_FIELD_BITPOS (t, i) >> 3));
 	  else if (noside != EVAL_NORMAL)
 	    return allocate_value (TYPE_FIELD_TYPE (t, i));
 	  else
@@ -3548,7 +3548,7 @@ value_struct_elt_for_reference (struct type *domain, int offset,
   for (i = TYPE_N_BASECLASSES (t) - 1; i >= 0; i--)
     {
       struct value *v;
-      int base_offset;
+      LONGEST base_offset;
 
       if (BASETYPE_VIA_VIRTUAL (t, i))
 	base_offset = 0;
@@ -3696,7 +3696,7 @@ value_rtti_indirect_type (struct value *v, int *full,
 struct value *
 value_full_object (struct value *argp, 
 		   struct type *rtype, 
-		   int xfull, int xtop,
+		   int xfull, LONGEST xtop,
 		   int xusing_enc)
 {
   struct type *real_type;

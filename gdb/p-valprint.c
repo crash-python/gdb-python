@@ -60,7 +60,7 @@ static const struct generic_val_print_decorations p_decorations =
 
 void
 pascal_val_print (struct type *type,
-		  int embedded_offset, CORE_ADDR address,
+		  LONGEST embedded_offset, CORE_ADDR address,
 		  struct ui_file *stream, int recurse,
 		  struct value *original_value,
 		  const struct value_print_options *options)
@@ -70,8 +70,8 @@ pascal_val_print (struct type *type,
   unsigned int i = 0;	/* Number of characters printed */
   unsigned len;
   struct type *elttype;
-  unsigned eltlen;
-  int length_pos, length_size, string_pos;
+  ULONGEST eltlen;
+  LONGEST length_pos, length_size, string_pos;
   struct type *char_type;
   CORE_ADDR addr;
   int want_space = 0;

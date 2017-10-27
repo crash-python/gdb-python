@@ -579,7 +579,7 @@ print_symbol (struct gdbarch *gdbarch, struct symbol *symbol,
 
 	case LOC_CONST_BYTES:
 	  {
-	    unsigned i;
+	    ULONGEST i;
 	    struct type *type = check_typedef (SYMBOL_TYPE (symbol));
 
 	    fprintf_filtered (outfile, "const %s hex bytes:",

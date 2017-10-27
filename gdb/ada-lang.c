@@ -78,7 +78,7 @@ static struct type *desc_bounds_type (struct type *);
 
 static struct value *desc_bounds (struct value *);
 
-static int fat_pntr_bounds_bitpos (struct type *);
+static LONGEST fat_pntr_bounds_bitpos (struct type *);
 
 static int fat_pntr_bounds_bitsize (struct type *);
 
@@ -86,13 +86,13 @@ static struct type *desc_data_target_type (struct type *);
 
 static struct value *desc_data (struct value *);
 
-static int fat_pntr_data_bitpos (struct type *);
+static LONGEST fat_pntr_data_bitpos (struct type *);
 
 static int fat_pntr_data_bitsize (struct type *);
 
 static struct value *desc_one_bound (struct value *, int, int);
 
-static int desc_bound_bitpos (struct type *, int, int);
+static LONGEST desc_bound_bitpos (struct type *, int, int);
 
 static int desc_bound_bitsize (struct type *, int, int);
 
@@ -176,7 +176,7 @@ static struct type *static_unwrap_type (struct type *type);
 
 static struct value *unwrap_value (struct value *);
 
-static struct type *constrained_packed_array_type (struct type *, long *);
+static struct type *constrained_packed_array_type (struct type *, LONGEST *);
 
 static struct type *decode_constrained_packed_array_type (struct type *);
 
@@ -215,14 +215,14 @@ static struct value *value_val_atr (struct type *, struct value *);
 static struct symbol *standard_lookup (const char *, const struct block *,
                                        domain_enum);
 
-static struct value *ada_search_struct_field (const char *, struct value *, int,
+static struct value *ada_search_struct_field (const char *, struct value *, LONGEST,
                                               struct type *);
 
-static struct value *ada_value_primitive_field (struct value *, int, int,
+static struct value *ada_value_primitive_field (struct value *, LONGEST, int,
                                                 struct type *);
 
-static int find_struct_field (const char *, struct type *, int,
-                              struct type **, int *, int *, int *, int *);
+static int find_struct_field (const char *, struct type *, LONGEST,
+                              struct type **, LONGEST *, int *, int *, int *);
 
 static int ada_resolve_function (struct block_symbol *, int,
                                  struct value **, int, const char *,
@@ -233,7 +233,7 @@ static int ada_is_direct_array_type (struct type *);
 static void ada_language_arch_info (struct gdbarch *,
 				    struct language_arch_info *);
 
-static struct value *ada_index_struct_field (int, struct value *, int,
+static struct value *ada_index_struct_field (LONGEST, struct value *, LONGEST,
 					     struct type *);
 
 static struct value *assign_aggregate (struct value *, struct value *, 
@@ -702,7 +702,7 @@ coerce_unspec_val_to_type (struct value *val, struct type *type)
 }
 
 static const gdb_byte *
-cond_offset_host (const gdb_byte *valaddr, long offset)
+cond_offset_host (const gdb_byte *valaddr, LONGEST offset)
 {
   if (valaddr == NULL)
     return NULL;
@@ -711,7 +711,7 @@ cond_offset_host (const gdb_byte *valaddr, long offset)
 }
 
 static CORE_ADDR
-cond_offset_target (CORE_ADDR address, long offset)
+cond_offset_target (CORE_ADDR address, LONGEST offset)
 {
   if (address == 0)
     return 0;
@@ -1753,7 +1753,7 @@ desc_bounds (struct value *arr)
 /* If TYPE is the type of an array-descriptor (fat pointer),  the bit
    position of the field containing the address of the bounds data.  */
 
-static int
+static LONGEST
 fat_pntr_bounds_bitpos (struct type *type)
 {
   return TYPE_FIELD_BITPOS (desc_base_type (type), 1);
@@ -1819,7 +1819,7 @@ desc_data (struct value *arr)
 /* If TYPE is the type of an array-descriptor (fat pointer), the bit
    position of the field containing the address of the data.  */
 
-static int
+static LONGEST
 fat_pntr_data_bitpos (struct type *type)
 {
   return TYPE_FIELD_BITPOS (desc_base_type (type), 0);
@@ -1854,7 +1854,7 @@ desc_one_bound (struct value *bounds, int i, int which)
    of the Ith lower bound stored in it, if WHICH is 0, and the Ith upper
    bound, if WHICH is 1.  The first bound is I=1.  */
 
-static int
+static LONGEST
 desc_bound_bitpos (struct type *type, int i, int which)
 {
   return TYPE_FIELD_BITPOS (desc_base_type (type), 2 * i + which - 2);
@@ -2044,7 +2044,7 @@ ada_type_of_array (struct value *arr, int bounds)
 	         zero, and does not need to be recomputed.  */
 	      if (lo < hi)
 		{
-		  int array_bitsize =
+		  LONGEST array_bitsize =
 		        (hi - lo + 1) * TYPE_FIELD_BITSIZE (elt_type, 0);
 
 		  TYPE_LENGTH (array_type) = (array_bitsize + 7) / 8;
@@ -2204,7 +2204,7 @@ decode_packed_array_bitsize (struct type *type)
    the length is arbitrary.  */
 
 static struct type *
-constrained_packed_array_type (struct type *type, long *elt_bits)
+constrained_packed_array_type (struct type *type, LONGEST *elt_bits)
 {
   struct type *new_elt_type;
   struct type *new_type;
@@ -2258,7 +2258,7 @@ decode_constrained_packed_array_type (struct type *type)
   char *name;
   const char *tail;
   struct type *shadow_type;
-  long bits;
+  LONGEST bits;
 
   if (!raw_name)
     raw_name = ada_type_name (desc_base_type (type));
@@ -2329,7 +2329,8 @@ decode_constrained_packed_array (struct value *arr)
  	 array with no wrapper.  In order to interpret the value through
  	 the (left-justified) packed array type we just built, we must
  	 first left-justify it.  */
-      int bit_size, bit_pos;
+      int bit_size;
+      LONGEST bit_pos;
       ULONGEST mod;
 
       mod = ada_modulus (value_type (arr)) - 1;
@@ -2557,7 +2558,7 @@ ada_unpack_from_contents (const gdb_byte *src, int bit_offset, int bit_size,
 
 struct value *
 ada_value_primitive_packed_val (struct value *obj, const gdb_byte *valaddr,
-				long offset, int bit_offset, int bit_size,
+				LONGEST offset, int bit_offset, int bit_size,
                                 struct type *type)
 {
   struct value *v;
@@ -2627,7 +2628,7 @@ ada_value_primitive_packed_val (struct value *obj, const gdb_byte *valaddr,
 
   if (obj != NULL)
     {
-      long new_offset = offset;
+      LONGEST new_offset = offset;
 
       set_value_component_location (v, obj);
       set_value_bitpos (v, bit_offset + value_bitpos (obj));
@@ -2697,7 +2698,7 @@ ada_value_assign (struct value *toval, struct value *fromval)
     {
       int len = (value_bitpos (toval)
 		 + bits + HOST_CHAR_BIT - 1) / HOST_CHAR_BIT;
-      int from_size;
+      LONGEST from_size;
       gdb_byte *buffer = (gdb_byte *) alloca (len);
       struct value *val;
       CORE_ADDR to_addr = value_address (toval);
@@ -2748,7 +2749,7 @@ value_assign_to_component (struct value *container, struct value *component,
     (LONGEST)  (value_address (component) - value_address (container));
   int bit_offset_in_container =
     value_bitpos (component) - value_bitpos (container);
-  int bits;
+  LONGEST bits;
 
   val = value_cast (value_type (component), val);
 
@@ -4455,7 +4456,7 @@ ensure_lval (struct value *val)
   if (VALUE_LVAL (val) == not_lval
       || VALUE_LVAL (val) == lval_internalvar)
     {
-      int len = TYPE_LENGTH (ada_check_typedef (value_type (val)));
+      LONGEST len = TYPE_LENGTH (ada_check_typedef (value_type (val)));
       const CORE_ADDR addr =
         value_as_long (value_allocate_space_in_inferior (len));
 
@@ -4539,7 +4540,7 @@ static CORE_ADDR
 value_pointer (struct value *value, struct type *type)
 {
   struct gdbarch *gdbarch = get_type_arch (type);
-  unsigned len = TYPE_LENGTH (type);
+  ULONGEST len = TYPE_LENGTH (type);
   gdb_byte *buf = (gdb_byte *) alloca (len);
   CORE_ADDR addr;
 
@@ -6653,7 +6654,7 @@ value_tag_from_contents_and_address (struct type *type,
 				     const gdb_byte *valaddr,
                                      CORE_ADDR address)
 {
-  int tag_byte_offset;
+  LONGEST tag_byte_offset;
   struct type *tag_type;
 
   if (find_struct_field ("_tag", type, 0, &tag_type, &tag_byte_offset,
@@ -7144,7 +7145,7 @@ ada_in_variant (LONGEST val, struct type *type, int field_num)
    only in that it can handle packed values of arbitrary type.  */
 
 static struct value *
-ada_value_primitive_field (struct value *arg1, int offset, int fieldno,
+ada_value_primitive_field (struct value *arg1, LONGEST offset, int fieldno,
                            struct type *arg_type)
 {
   struct type *type;
@@ -7156,7 +7157,7 @@ ada_value_primitive_field (struct value *arg1, int offset, int fieldno,
 
   if (TYPE_FIELD_BITSIZE (arg_type, fieldno) != 0)
     {
-      int bit_pos = TYPE_FIELD_BITPOS (arg_type, fieldno);
+      LONGEST bit_pos = TYPE_FIELD_BITPOS (arg_type, fieldno);
       int bit_size = TYPE_FIELD_BITSIZE (arg_type, fieldno);
 
       return ada_value_primitive_packed_val (arg1, value_contents (arg1),
@@ -7233,9 +7234,9 @@ ada_value_primitive_field (struct value *arg1, int offset, int fieldno,
    Returns 1 if found, 0 otherwise.  */
 
 static int
-find_struct_field (const char *name, struct type *type, int offset,
+find_struct_field (const char *name, struct type *type, LONGEST offset,
                    struct type **field_type_p,
-                   int *byte_offset_p, int *bit_offset_p, int *bit_size_p,
+		   LONGEST *byte_offset_p, int *bit_offset_p, int *bit_size_p,
 		   int *index_p)
 {
   int i;
@@ -7254,8 +7255,8 @@ find_struct_field (const char *name, struct type *type, int offset,
 
   for (i = 0; i < TYPE_NFIELDS (type); i += 1)
     {
-      int bit_pos = TYPE_FIELD_BITPOS (type, i);
-      int fld_offset = offset + bit_pos / 8;
+      LONGEST bit_pos = TYPE_FIELD_BITPOS (type, i);
+      LONGEST fld_offset = offset + bit_pos / 8;
       const char *t_field_name = TYPE_FIELD_NAME (type, i);
 
       if (t_field_name == NULL)
@@ -7357,7 +7358,7 @@ num_visible_fields (struct type *type)
    long explanation in find_struct_field's function documentation.  */
 
 static struct value *
-ada_search_struct_field (const char *name, struct value *arg, int offset,
+ada_search_struct_field (const char *name, struct value *arg, LONGEST offset,
                          struct type *type)
 {
   int i;
@@ -7405,7 +7406,7 @@ ada_search_struct_field (const char *name, struct value *arg, int offset,
           int j;
           struct type *field_type = ada_check_typedef (TYPE_FIELD_TYPE (type,
 									i));
-          int var_offset = offset + TYPE_FIELD_BITPOS (type, i) / 8;
+	  LONGEST var_offset = offset + TYPE_FIELD_BITPOS (type, i) / 8;
 
           for (j = 0; j < TYPE_NFIELDS (field_type); j += 1)
             {
@@ -7437,8 +7438,8 @@ ada_search_struct_field (const char *name, struct value *arg, int offset,
   return NULL;
 }
 
-static struct value *ada_index_struct_field_1 (int *, struct value *,
-					       int, struct type *);
+static struct value *ada_index_struct_field_1 (LONGEST *, struct value *,
+					       LONGEST, struct type *);
 
 
 /* Return field #INDEX in ARG, where the index is that returned by
@@ -7447,7 +7448,7 @@ static struct value *ada_index_struct_field_1 (int *, struct value *,
  * If found, return value, else return NULL.  */
 
 static struct value *
-ada_index_struct_field (int index, struct value *arg, int offset,
+ada_index_struct_field (LONGEST index, struct value *arg, LONGEST offset,
 			struct type *type)
 {
   return ada_index_struct_field_1 (&index, arg, offset, type);
@@ -7459,7 +7460,7 @@ ada_index_struct_field (int index, struct value *arg, int offset,
  * *INDEX_P.  */
 
 static struct value *
-ada_index_struct_field_1 (int *index_p, struct value *arg, int offset,
+ada_index_struct_field_1 (LONGEST *index_p, struct value *arg, LONGEST offset,
 			  struct type *type)
 {
   int i;
@@ -7550,7 +7551,8 @@ ada_value_struct_elt (struct value *arg, const char *name, int no_err)
     v = ada_search_struct_field (name, arg, 0, t);
   else
     {
-      int bit_offset, bit_size, byte_offset;
+      int bit_offset, bit_size;
+      LONGEST byte_offset;
       struct type *field_type;
       CORE_ADDR address;
 
@@ -7899,8 +7901,8 @@ ada_coerce_ref (struct value *val0)
 /* Return OFF rounded upward if necessary to a multiple of
    ALIGNMENT (a power of 2).  */
 
-static unsigned int
-align_value (unsigned int off, unsigned int alignment)
+static ULONGEST
+align_value (ULONGEST off, ULONGEST alignment)
 {
   return (off + alignment - 1) & ~(alignment - 1);
 }
@@ -8290,10 +8292,9 @@ ada_template_to_fixed_record_type_1 (struct type *type,
   struct value *mark = value_mark ();
   struct value *dval;
   struct type *rtype;
-  int nfields, bit_len;
+  int nfields;
   int variant_field;
-  long off;
-  int fld_bit_len;
+  LONGEST off, bit_len, fld_bit_len;
   int f;
 
   /* Compute the number of fields in this record type that are going
@@ -8370,7 +8371,7 @@ ada_template_to_fixed_record_type_1 (struct type *type,
 	     that follow this one.  */
 	  if (ada_is_aligner_type (field_type))
 	    {
-	      long field_offset = TYPE_FIELD_BITPOS (field_type, f);
+	      LONGEST field_offset = TYPE_FIELD_BITPOS (field_type, f);
 
 	      field_valaddr = cond_offset_host (field_valaddr, field_offset);
 	      field_address = cond_offset_target (field_address, field_offset);
@@ -8974,7 +8975,8 @@ to_fixed_array_type (struct type *type0, struct value *dval,
 	 type was a regular (non-packed) array type.  As a result, the
 	 bitsize of the array elements needs to be set again, and the array
 	 length needs to be recomputed based on that bitsize.  */
-      int len = TYPE_LENGTH (result) / TYPE_LENGTH (TYPE_TARGET_TYPE (result));
+      LONGEST len = (TYPE_LENGTH (result)
+		     / TYPE_LENGTH (TYPE_TARGET_TYPE (result)));
       int elt_bitsize = TYPE_FIELD_BITSIZE (type0, 0);
 
       TYPE_FIELD_BITSIZE (result, 0) = TYPE_FIELD_BITSIZE (type0, 0);

@@ -893,10 +893,10 @@ collection_list::add_local_register (struct gdbarch *gdbarch,
 void
 collection_list::add_memrange (struct gdbarch *gdbarch,
 			       int type, bfd_signed_vma base,
-			       unsigned long len, CORE_ADDR scope)
+			       ULONGEST len, CORE_ADDR scope)
 {
   if (info_verbose)
-    printf_filtered ("(%d,%s,%ld)\n", type, paddress (gdbarch, base), len);
+    printf_filtered ("(%d,%s,%s)\n", type, paddress (gdbarch, base), pulongest (len));
 
   /* type: memrange_absolute == memory, other n == basereg */
   /* base: addr if memory, offset if reg relative.  */
@@ -916,7 +916,7 @@ collection_list::collect_symbol (struct symbol *sym,
 				 CORE_ADDR scope,
 				 int trace_string)
 {
-  unsigned long len;
+  ULONGEST len;
   unsigned int reg;
   bfd_signed_vma offset;
   int treat_as_expr = 0;
@@ -937,8 +937,8 @@ collection_list::collect_symbol (struct symbol *sym,
       offset = SYMBOL_VALUE_ADDRESS (sym);
       if (info_verbose)
 	{
-	  printf_filtered ("LOC_STATIC %s: collect %ld bytes at %s.\n",
-			   SYMBOL_PRINT_NAME (sym), len,
+	  printf_filtered ("LOC_STATIC %s: collect %s bytes at %s.\n",
+			   SYMBOL_PRINT_NAME (sym), pulongest (len),
 			   paddress (gdbarch, offset));
 	}
       /* A struct may be a C++ class with static fields, go to general
@@ -970,9 +970,9 @@ collection_list::collect_symbol (struct symbol *sym,
       offset = frame_offset + SYMBOL_VALUE (sym);
       if (info_verbose)
 	{
-	  printf_filtered ("LOC_LOCAL %s: Collect %ld bytes at offset %s"
+	  printf_filtered ("LOC_LOCAL %s: Collect %s bytes at offset %s"
 			   " from frame ptr reg %d\n",
-			   SYMBOL_PRINT_NAME (sym), len,
+			   SYMBOL_PRINT_NAME (sym), pulongest (len),
 			   paddress (gdbarch, offset), reg);
 	}
       add_memrange (gdbarch, reg, offset, len, scope);
@@ -982,9 +982,9 @@ collection_list::collect_symbol (struct symbol *sym,
       offset = 0;
       if (info_verbose)
 	{
-	  printf_filtered ("LOC_REGPARM_ADDR %s: Collect %ld bytes at offset %s"
+	  printf_filtered ("LOC_REGPARM_ADDR %s: Collect %s bytes at offset %s"
 			   " from reg %d\n",
-			   SYMBOL_PRINT_NAME (sym), len,
+			   SYMBOL_PRINT_NAME (sym), pulongest (len),
 			   paddress (gdbarch, offset), reg);
 	}
       add_memrange (gdbarch, reg, offset, len, scope);
@@ -994,9 +994,9 @@ collection_list::collect_symbol (struct symbol *sym,
       offset = frame_offset + SYMBOL_VALUE (sym);
       if (info_verbose)
 	{
-	  printf_filtered ("LOC_LOCAL %s: Collect %ld bytes at offset %s"
+	  printf_filtered ("LOC_LOCAL %s: Collect %s bytes at offset %s"
 			   " from frame ptr reg %d\n",
-			   SYMBOL_PRINT_NAME (sym), len,
+			   SYMBOL_PRINT_NAME (sym), pulongest (len),
 			   paddress (gdbarch, offset), reg);
 	}
       add_memrange (gdbarch, reg, offset, len, scope);
@@ -2492,7 +2492,8 @@ info_scope_command (const char *args_in, int from_tty)
   const char *symname;
   const char *save_args = args_in;
   struct block_iterator iter;
-  int j, count = 0;
+  int count = 0;
+  LONGEST j;
   struct gdbarch *gdbarch;
   int regno;
   const char *args = args_in;
