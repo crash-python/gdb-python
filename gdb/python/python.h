@@ -28,4 +28,6 @@ extern const struct extension_language_defn extension_language_python;
 /* Command element for the 'python' command.  */
 extern cmd_list_element *python_cmd_element;
 
+extern void run_python_script (int argc, char **argv);
+
 #endif /* PYTHON_PYTHON_H */
