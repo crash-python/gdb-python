@@ -1138,6 +1138,7 @@ gdbpy_apply_frame_filter (const struct extension_language_defn *extlang,
 				       htab_eq_pointer,
 				       NULL));
 
+  int count_printed = 0;
   while (true)
     {
       gdbpy_ref<> item (PyIter_Next (iterable.get ()));
@@ -1147,7 +1148,7 @@ gdbpy_apply_frame_filter (const struct extension_language_defn *extlang,
 	  if (PyErr_Occurred ())
 	    {
 	      gdbpy_print_stack_or_quit ();
-	      return EXT_LANG_BT_ERROR;
+	      return count_printed > 0 ? EXT_LANG_BT_ERROR : EXT_LANG_BT_NO_FILTERS;
 	    }
 	  break;
 	}
@@ -1180,6 +1181,7 @@ gdbpy_apply_frame_filter (const struct extension_language_defn *extlang,
 	 error and continue with other frames.  */
       if (success == EXT_LANG_BT_ERROR)
 	gdbpy_print_stack_or_quit ();
+      count_printed++;
     }
 
   return success;
