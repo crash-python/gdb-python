@@ -25,7 +25,21 @@ if {[prepare_for_testing $testfile.exp $testfile $srcfile {f90 debug}]} {
     return -1
 }
 
-if {![runto MAIN__]} {
+if { [is_ilp32_target] && ([istarget "i\[34567\]86-*-linux*"]
+			   || [istarget "x86_64-*-linux*"]) } {
+    set srcfile ${testfile}.S
+    set opts {nodebug f90}
+} else {
+    set srcfile ${testfile}.f
+    set opts {debug f90}
+}
+
+if {[prepare_for_testing $testfile.exp $testfile $srcfile $opts]} {
+    print "compile failed"
+    return -1
+}
+
+if { ![runto MAIN__] } {
     perror "Could not run to breakpoint `MAIN__'."
     continue
 }
