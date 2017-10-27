@@ -439,6 +439,34 @@ struct cmdarg
   char *string;
 };
 
+/* Call exec_file_attach.  If it detected FILENAME is a core file call
+   core_file_command.  Print the original exec_file_attach error only if
+   core_file_command failed to find a matching executable.  */
+
+static void
+exec_or_core_file_attach (const char *filename, int from_tty)
+{
+  gdb_assert (exec_bfd == NULL);
+
+  try
+    {
+      exec_file_attach (filename, from_tty);
+    }
+  catch (const gdb_exception &e)
+    {
+      if (e.error == IS_CORE_ERROR)
+	{
+	  core_file_command ((char *) filename, from_tty);
+
+	  /* Iff the core file found its executable suppress the error message
+	     from exec_file_attach.  */
+	  if (exec_bfd != NULL)
+	    return;
+	}
+      throw_exception (e);
+    }
+}
+
 static void
 captured_main_1 (struct captured_main_args *context)
 {
@@ -884,6 +912,8 @@ captured_main_1 (struct captured_main_args *context)
 	{
 	  symarg = argv[optind];
 	  execarg = argv[optind];
+	  if (optind + 1 == argc && corearg == NULL)
+	    corearg = argv[optind];
 	  optind++;
 	}
 
@@ -1034,12 +1064,23 @@ captured_main_1 (struct captured_main_args *context)
       && symarg != NULL
       && strcmp (execarg, symarg) == 0)
     {
+      catch_command_errors_const_ftype *func;
+
+      /* Call exec_or_core_file_attach only if the file was specified as
+	 a command line argument (and not an a command line option).  */
+      if (corearg != NULL && strcmp (corearg, execarg) == 0)
+	{
+	  func = exec_or_core_file_attach;
+	  corearg = NULL;
+	}
+      else
+	func = exec_file_attach;
+
       /* The exec file and the symbol-file are the same.  If we can't
          open it, better only print one error message.
          catch_command_errors returns non-zero on success!  */
-      ret = catch_command_errors (exec_file_attach, execarg,
-				  !batch_flag);
-      if (ret != 0)
+      ret = catch_command_errors (func, execarg, !batch_flag);
+      if (ret != 0 && core_bfd == NULL)
 	ret = catch_command_errors (symbol_file_add_main_adapter,
 				    symarg, !batch_flag);
     }
