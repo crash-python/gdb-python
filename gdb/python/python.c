@@ -543,12 +543,16 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
 {
   const char *arg;
   PyObject *from_tty_obj = NULL, *to_string_obj = NULL;
-  int from_tty, to_string;
-  static const char *keywords[] = { "command", "from_tty", "to_string", NULL };
+  int from_tty, to_string, release_gil;
+  static const char *keywords[] = {"command", "from_tty", "to_string", "release_gil", NULL };
+  PyObject *release_gil_obj = NULL;
+  /* Initialize it just to avoid a GCC false warning.  */
+  PyThreadState *state = NULL;
 
-  if (!gdb_PyArg_ParseTupleAndKeywords (args, kw, "s|O!O!", keywords, &arg,
+  if (!gdb_PyArg_ParseTupleAndKeywords (args, kw, "s|O!O!O!", keywords, &arg,
 					&PyBool_Type, &from_tty_obj,
-					&PyBool_Type, &to_string_obj))
+					&PyBool_Type, &to_string_obj,
+					&PyBool_Type, &release_gil_obj))
     return NULL;
 
   from_tty = 0;
@@ -567,6 +571,15 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
       if (cmp < 0)
 	return NULL;
       to_string = cmp;
+    }
+
+  release_gil = 0;
+  if (release_gil_obj)
+    {
+      int cmp = PyObject_IsTrue (release_gil_obj);
+      if (cmp < 0)
+	return NULL;
+      release_gil = cmp;
     }
 
   std::string to_string_res;
@@ -593,10 +606,16 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
 
       counted_command_line lines = read_command_lines_1 (reader, 1, nullptr);
 
+      /* In the case of long running GDB commands, allow the user to
+	 release the Python GIL acquired by Python.  Restore the GIL
+	 after the command has completed before handing back to
+	 Python.  */
+      if (release_gil)
+	state = PyEval_SaveThread();
+
       {
 	scoped_restore save_async = make_scoped_restore (&current_ui->async,
 							 0);
-
 	scoped_restore save_uiout = make_scoped_restore (&current_uiout);
 
 	/* Use the console interpreter uiout to have the same print format
@@ -611,12 +630,24 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
 	  execute_control_commands (lines.get (), from_tty);
       }
 
+      /* Reacquire the GIL if it was released earlier.  */
+      if (release_gil)
+	PyEval_RestoreThread (state);
+
       /* Do any commands attached to breakpoint we stopped at.  */
       bpstat_do_actions ();
     }
   catch (const gdb_exception &except)
     {
-      GDB_PY_HANDLE_EXCEPTION (except);
+      if (except.reason < 0)
+	{
+	  /* Reacquire the GIL if it was released earlier.  */
+	  if (release_gil)
+	    PyEval_RestoreThread (state);
+
+	  gdbpy_convert_exception (except);
+	  return NULL;
+	}
     }
 
   if (to_string)
