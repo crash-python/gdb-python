@@ -124,6 +124,15 @@ set valnum_re "\\\$$decimal"
 
 ### Only procedures should come after this point.
 
+if {![llength [info procs kfail]]} {
+    proc setup_kfail { args } {
+	#setup_xfail args
+    }
+    proc kfail { bugid message } {
+	fail $message
+    }
+}
+
 #
 # gdb_version -- extract and print the version number of GDB
 #
