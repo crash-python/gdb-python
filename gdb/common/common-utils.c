@@ -90,6 +90,9 @@ xcalloc (size_t number, size_t size)
 void *
 xzalloc (size_t size)
 {
+  /* HACK: Round up to 8 bytes, fixes a problem with buffers of long double on
+     32 bit (12 bytes) when filled from a 64 bit gdb (16 bytes).  Ugh.  */
+  size = (size + 7) & ~(size_t)7;
   return xcalloc (1, size);
 }
 
