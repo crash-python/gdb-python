@@ -227,32 +227,33 @@ py_target_to_xfer_partial (struct target_ops *ops,
 					      readbuf.get(), writebuf.get(),
 					      offset, len));
 
-    if (ret == NULL)
-      return rt;
     if (PyErr_Occurred())
       {
 	if (PyErr_ExceptionMatches (py_target_xfer_eof_error))
 	  {
-	    PyErr_Clear();
 	    rt = TARGET_XFER_EOF;
-	    return rt;
 	  }
 	else if (PyErr_ExceptionMatches (PyExc_IOError))
 	  {
-	    PyErr_Clear();
 	    rt = TARGET_XFER_E_IO;
-	    return rt;
 	  }
 	else if (PyErr_ExceptionMatches (py_target_xfer_unavailable_error))
 	  {
-	    PyErr_Clear();
-	    rt = TARGET_XFER_UNAVAILABLE;
 	    *xfered_len = len;
-	    return rt;
+	    rt = TARGET_XFER_UNAVAILABLE;
 	  }
 	else
 	  return rt;
+
+	PyErr_Clear();
+	return rt;
     }
+
+    if (ret == NULL)
+      {
+        *xfered_len = 0;
+        return TARGET_XFER_UNAVAILABLE;
+      }
 
     lret = PyLong_AsUnsignedLongLong (ret.get());
     if (PyErr_Occurred ())
