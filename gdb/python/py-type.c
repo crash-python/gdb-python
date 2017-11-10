@@ -1357,7 +1357,7 @@ gdbpy_lookup_type (PyObject *self, PyObject *args, PyObject *kw)
 					&type_name, &block_obj))
     return NULL;
 
-  if (block_obj)
+  if (block_obj && block_obj != Py_None)
     {
       block = block_object_to_block (block_obj);
       if (! block)
