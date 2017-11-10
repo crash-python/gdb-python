@@ -43,7 +43,7 @@ LONGEST f77_array_offset_tbl[MAX_FORTRAN_DIMS + 1][2];
 /* Array which holds offsets to be applied to get a row's elements
    for a given array.  Array also holds the size of each subarray.  */
 
-int
+LONGEST
 f77_get_lowerbound (struct type *type)
 {
   if (TYPE_ARRAY_LOWER_BOUND_IS_UNDEFINED (type))
@@ -52,7 +52,7 @@ f77_get_lowerbound (struct type *type)
   return TYPE_ARRAY_LOWER_BOUND_VALUE (type);
 }
 
-int
+LONGEST
 f77_get_upperbound (struct type *type)
 {
   if (TYPE_ARRAY_UPPER_BOUND_IS_UNDEFINED (type))
