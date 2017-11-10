@@ -3469,9 +3469,37 @@ check_types_equal (struct type *type1, struct type *type2,
 
   if (TYPE_CODE (type1) == TYPE_CODE_RANGE)
     {
-      if (memcmp (TYPE_RANGE_DATA (type1), TYPE_RANGE_DATA (type2),
-		  sizeof (*TYPE_RANGE_DATA (type1))) != 0)
+      if (TYPE_RANGE_DATA (type1)->low.kind !=
+	  TYPE_RANGE_DATA (type2)->low.kind)
 	return 0;
+      if (TYPE_RANGE_DATA (type1)->low.data.const_val !=
+	  TYPE_RANGE_DATA (type2)->low.data.const_val)
+	return 0;
+      if (TYPE_RANGE_DATA (type1)->high.kind !=
+	  TYPE_RANGE_DATA (type2)->high.kind)
+	return 0;
+      if (TYPE_RANGE_DATA (type1)->high.data.const_val !=
+	  TYPE_RANGE_DATA (type2)->high.data.const_val)
+	return 0;
+      if (TYPE_RANGE_DATA (type1)->stride.kind !=
+	  TYPE_RANGE_DATA (type2)->stride.kind)
+	return 0;
+      if (TYPE_RANGE_DATA (type1)->stride.data.const_val !=
+	  TYPE_RANGE_DATA (type2)->stride.data.const_val)
+	return 0;
+      if (TYPE_RANGE_DATA (type1)->flag_upper_bound_is_count !=
+	  TYPE_RANGE_DATA (type2)->flag_upper_bound_is_count)
+	return 0;
+
+      /*
+       * Checking this means that a type resolved by name and a type
+       * resolved by usage will never be equal.
+       */
+      /*
+      if (TYPE_RANGE_DATA (type1)->flag_bound_evaluated !=
+	  TYPE_RANGE_DATA (type2)->flag_bound_evaluated)
+	return 0;
+       */
     }
   else
     {
