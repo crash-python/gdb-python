@@ -2100,6 +2100,7 @@ search_struct_method (const char *name, struct value **arg1p,
 	      struct cleanup *back_to;
 	      CORE_ADDR address;
 
+	      ulongest_fits_host_or_error (TYPE_LENGTH (baseclass));
 	      tmp = (gdb_byte *) xmalloc (TYPE_LENGTH (baseclass));
 	      back_to = make_cleanup (xfree, tmp);
 	      address = value_address (*arg1p);
