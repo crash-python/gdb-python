@@ -249,6 +249,9 @@ struct gdbarch_tdep
 
   /* Regsets. */
   const struct regset *fpregset;
+
+  /* Detect OS dependent outermost frames; such as `clone'.  */
+  int (*outermost_frame_p) (struct frame_info *this_frame);
 };
 
 /* Floating-point registers.  */
