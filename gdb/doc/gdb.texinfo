@@ -19322,6 +19322,14 @@ There are currently some limitation on indices.  They only work when
 for DWARF debugging information, not stabs.  And, they do not
 currently work for programs using Ada.
 
+@value{GDBN} comes with a program, @command{gdb-add-index}, which can
+be used to add the index to a symbol file.  It takes the symbol file
+as its only argument:
+
+@smallexample
+$ gdb-add-index symfile
+@end smallexample
+
 @node Symbol Errors
 @section Errors Reading Symbol Files
 
@@ -41938,6 +41946,7 @@ switch (die->tag)
 * gdbserver man::               Remote Server for the GNU Debugger man page
 * gcore man::                   Generate a core file of a running program
 * gdbinit man::                 gdbinit scripts
+* gdb-add-index man::           Add index files to speed up GDB
 @end menu
 
 @node gdb man
@@ -42592,6 +42601,54 @@ the @value{GDBN} manual in node @code{Init File in the Current Directory}
 @ifset man
 gdb(1), @code{info -f gdb -n Startup}
 
+The full documentation for @value{GDBN} is maintained as a Texinfo manual.
+If the @code{info} and @code{gdb} programs and @value{GDBN}'s Texinfo
+documentation are properly installed at your site, the command
+
+@smallexample
+info gdb
+@end smallexample
+
+should give you access to the complete manual.
+
+@cite{Using GDB: A Guide to the GNU Source-Level Debugger},
+Richard M. Stallman and Roland H. Pesch, July 1991.
+@end ifset
+@c man end
+
+@node gdb-add-index man
+@heading gdb-add-index
+
+@c man title gdb-add-index Add index files to speed up GDB
+
+@c man begin SYNOPSIS gdb-add-index
+gdb-add-index @var{filename}
+@c man end
+
+@c man begin DESCRIPTION gdb-add-index
+When GDB finds a symbol file, it scans the symbols in the file in order
+to construct an internal symbol table.  This lets most GDB operations
+work quickly--at the cost of a delay early on.  For large programs,
+this delay can be quite lengthy, so GDB provides a way to build an
+index, which speeds up startup.
+
+To determine whether a file contains such an index, use the command
+@command{readelf -S filename}: the index is stored in a section named
+@code{.gdb_index}.  Note that the index is never generated for files that do
+not contain DWARF debug information (sections named @code{.debug_*}).
+
+See more in
+@ifset man
+the @value{GDBN} manual in node @code{Index Files}
+-- shell command @code{info -f gdb -n 'Index Files'}.
+@end ifset
+@ifclear man
+@ref{Index Files}.
+@end ifclear
+@c man end
+
+@c man begin SEEALSO gdb-add-index
+@ifset man
 The full documentation for @value{GDBN} is maintained as a Texinfo manual.
 If the @code{info} and @code{gdb} programs and @value{GDBN}'s Texinfo
 documentation are properly installed at your site, the command
