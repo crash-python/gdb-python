@@ -473,7 +473,7 @@ holding the child stopped.  Try \"set detach-on-fork\" or \
 	      remove_breakpoints_pid (ptid_get_pid (inferior_ptid));
 	    }
 
-	  if (info_verbose || debug_infrun)
+	  if (1 /* Fedora Bug 235197 */ || info_verbose || debug_infrun)
 	    {
 	      /* Ensure that we have a process ptid.  */
 	      ptid_t process_ptid = pid_to_ptid (ptid_get_pid (child_ptid));
