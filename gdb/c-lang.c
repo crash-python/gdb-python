@@ -186,7 +186,7 @@ c_printchar (int c, struct type *type, struct ui_file *stream)
 
 void
 c_printstr (struct ui_file *stream, struct type *type, 
-	    const gdb_byte *string, unsigned int length, 
+	    const gdb_byte *string, ULONGEST length,
 	    const char *user_encoding, int force_ellipses,
 	    const struct value_print_options *options)
 {
@@ -672,7 +672,7 @@ evaluate_subexp_c (struct type *expect_type, struct expression *exp,
 	  }
 	else
 	  {
-	    int i;
+	    LONGEST i;
 
 	    /* Write the terminating character.  */
 	    for (i = 0; i < TYPE_LENGTH (type); ++i)
@@ -681,7 +681,7 @@ evaluate_subexp_c (struct type *expect_type, struct expression *exp,
 	    if (satisfy_expected)
 	      {
 		LONGEST low_bound, high_bound;
-		int element_size = TYPE_LENGTH (type);
+		LONGEST element_size = TYPE_LENGTH (type);
 
 		if (get_discrete_bounds (TYPE_INDEX_TYPE (expect_type),
 					 &low_bound, &high_bound) < 0)

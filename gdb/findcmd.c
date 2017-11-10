@@ -180,7 +180,7 @@ parse_find_args (char *args, ULONGEST *max_countp,
 	 need to grow the pattern buf.  */
       pattern_buf_size_need = (pattern_buf_end - pattern_buf
 			       + std::max (TYPE_LENGTH (t),
-					   (unsigned) sizeof (int64_t)));
+					   (ULONGEST) sizeof (int64_t)));
       if (pattern_buf_size_need > pattern_buf_size)
 	{
 	  size_t current_offset = pattern_buf_end - pattern_buf;

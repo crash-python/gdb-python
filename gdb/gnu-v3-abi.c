@@ -109,7 +109,7 @@ build_gdb_vtable_type (struct gdbarch *arch)
 {
   struct type *t;
   struct field *field_list, *field;
-  int offset;
+  LONGEST offset;
 
   struct type *void_ptr_type
     = builtin_type (arch)->builtin_data_ptr;
@@ -185,7 +185,7 @@ vtable_ptrdiff_type (struct gdbarch *gdbarch)
 /* Return the offset from the start of the imaginary `struct
    gdb_gnu_v3_abi_vtable' object to the vtable's "address point"
    (i.e., where objects' virtual table pointers point).  */
-static int
+static LONGEST
 vtable_address_point_offset (struct gdbarch *gdbarch)
 {
   struct type *vtable_type
@@ -408,7 +408,7 @@ gnuv3_get_virtual_fn (struct gdbarch *gdbarch, struct value *container,
 static struct value *
 gnuv3_virtual_fn_field (struct value **value_p,
                         struct fn_field *f, int j,
-			struct type *vfn_base, int offset)
+			struct type *vfn_base, LONGEST offset)
 {
   struct type *values_type = check_typedef (value_type (*value_p));
   struct gdbarch *gdbarch;
@@ -438,7 +438,7 @@ gnuv3_virtual_fn_field (struct value **value_p,
 
    -1 is returned on error.  */
 
-static int
+static LONGEST
 gnuv3_baseclass_offset (struct type *type, int index,
 			const bfd_byte *valaddr, LONGEST embedded_offset,
 			CORE_ADDR address, const struct value *val)
@@ -447,7 +447,7 @@ gnuv3_baseclass_offset (struct type *type, int index,
   struct type *ptr_type;
   struct value *vtable;
   struct value *vbase_array;
-  long int cur_base_offset, base_offset;
+  LONGEST cur_base_offset, base_offset;
 
   /* Determine architecture.  */
   gdbarch = get_type_arch (type);
@@ -470,7 +470,7 @@ gnuv3_baseclass_offset (struct type *type, int index,
   cur_base_offset = cur_base_offset + vtable_address_point_offset (gdbarch);
   if ((- cur_base_offset) % TYPE_LENGTH (ptr_type) != 0)
     error (_("Misaligned vbase offset."));
-  cur_base_offset = cur_base_offset / ((int) TYPE_LENGTH (ptr_type));
+  cur_base_offset = cur_base_offset / ((LONGEST) TYPE_LENGTH (ptr_type));
 
   vtable = gnuv3_get_vtable (gdbarch, type, address + embedded_offset);
   gdb_assert (vtable != NULL);
@@ -514,7 +514,7 @@ gnuv3_find_method_in (struct type *domain, CORE_ADDR voffset,
      we're out of luck.  */
   for (i = 0; i < TYPE_N_BASECLASSES (domain); i++)
     {
-      int pos;
+      LONGEST pos;
       struct type *basetype;
 
       if (BASETYPE_VIA_VIRTUAL (domain, i))

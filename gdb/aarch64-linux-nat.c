@@ -708,7 +708,7 @@ aarch64_linux_remove_watchpoint (struct target_ops *self,
 
 static int
 aarch64_linux_region_ok_for_hw_watchpoint (struct target_ops *self,
-					   CORE_ADDR addr, int len)
+					   CORE_ADDR addr, LONGEST len)
 {
   return aarch64_linux_region_ok_for_watchpoint (addr, len);
 }

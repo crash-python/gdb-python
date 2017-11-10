@@ -83,12 +83,12 @@ static void gen_traced_pop (struct gdbarch *, struct agent_expr *,
 static void gen_sign_extend (struct agent_expr *, struct type *);
 static void gen_extend (struct agent_expr *, struct type *);
 static void gen_fetch (struct agent_expr *, struct type *);
-static void gen_left_shift (struct agent_expr *, int);
+static void gen_left_shift (struct agent_expr *, LONGEST);
 
 
 static void gen_frame_args_address (struct gdbarch *, struct agent_expr *);
 static void gen_frame_locals_address (struct gdbarch *, struct agent_expr *);
-static void gen_offset (struct agent_expr *ax, int offset);
+static void gen_offset (struct agent_expr *ax, LONGEST offset);
 static void gen_sym_offset (struct agent_expr *, struct symbol *);
 static void gen_var_ref (struct gdbarch *, struct agent_expr *ax,
 			 struct axs_value *value, struct symbol *var);
@@ -137,15 +137,15 @@ static void gen_deref (struct agent_expr *, struct axs_value *);
 static void gen_address_of (struct agent_expr *, struct axs_value *);
 static void gen_bitfield_ref (struct expression *exp, struct agent_expr *ax,
 			      struct axs_value *value,
-			      struct type *type, int start, int end);
+			      struct type *type, LONGEST start, LONGEST end);
 static void gen_primitive_field (struct expression *exp,
 				 struct agent_expr *ax,
 				 struct axs_value *value,
-				 int offset, int fieldno, struct type *type);
+				 LONGEST offset, int fieldno, struct type *type);
 static int gen_struct_ref_recursive (struct expression *exp,
 				     struct agent_expr *ax,
 				     struct axs_value *value,
-				     const char *field, int offset,
+				     const char *field, LONGEST offset,
 				     struct type *type);
 static void gen_struct_ref (struct expression *exp, struct agent_expr *ax,
 			    struct axs_value *value,
@@ -541,7 +541,7 @@ gen_fetch (struct agent_expr *ax, struct type *type)
    right shift it by -DISTANCE bits if DISTANCE < 0.  This generates
    unsigned (logical) right shifts.  */
 static void
-gen_left_shift (struct agent_expr *ax, int distance)
+gen_left_shift (struct agent_expr *ax, LONGEST distance)
 {
   if (distance > 0)
     {
@@ -595,7 +595,7 @@ gen_frame_locals_address (struct gdbarch *gdbarch, struct agent_expr *ax)
    programming in ML, it would be clearer why these are the same
    thing.  */
 static void
-gen_offset (struct agent_expr *ax, int offset)
+gen_offset (struct agent_expr *ax, LONGEST offset)
 {
   /* It would suffice to simply push the offset and add it, but this
      makes it easier to read positive and negative offsets in the
@@ -1251,7 +1251,7 @@ gen_address_of (struct agent_expr *ax, struct axs_value *value)
 static void
 gen_bitfield_ref (struct expression *exp, struct agent_expr *ax,
 		  struct axs_value *value, struct type *type,
-		  int start, int end)
+		  LONGEST start, LONGEST end)
 {
   /* Note that ops[i] fetches 8 << i bits.  */
   static enum agent_op ops[]
@@ -1286,13 +1286,13 @@ gen_bitfield_ref (struct expression *exp, struct agent_expr *ax,
 
   /* The first and one-after-last bits in the field, but rounded down
      and up to byte boundaries.  */
-  int bound_start = (start / TARGET_CHAR_BIT) * TARGET_CHAR_BIT;
-  int bound_end = (((end + TARGET_CHAR_BIT - 1)
-		    / TARGET_CHAR_BIT)
-		   * TARGET_CHAR_BIT);
+  LONGEST bound_start = (start / TARGET_CHAR_BIT) * TARGET_CHAR_BIT;
+  LONGEST bound_end = (((end + TARGET_CHAR_BIT - 1)
+			/ TARGET_CHAR_BIT)
+		       * TARGET_CHAR_BIT);
 
   /* current bit offset within the structure */
-  int offset;
+  LONGEST offset;
 
   /* The index in ops of the opcode we're considering.  */
   int op;
@@ -1411,7 +1411,7 @@ gen_bitfield_ref (struct expression *exp, struct agent_expr *ax,
 static void
 gen_primitive_field (struct expression *exp,
 		     struct agent_expr *ax, struct axs_value *value,
-		     int offset, int fieldno, struct type *type)
+		     LONGEST offset, int fieldno, struct type *type)
 {
   /* Is this a bitfield?  */
   if (TYPE_FIELD_PACKED (type, fieldno))
@@ -1436,7 +1436,7 @@ gen_primitive_field (struct expression *exp,
 static int
 gen_struct_ref_recursive (struct expression *exp, struct agent_expr *ax,
 			  struct axs_value *value,
-			  const char *field, int offset, struct type *type)
+			  const char *field, LONGEST offset, struct type *type)
 {
   int i, rslt;
   int nbases = TYPE_N_BASECLASSES (type);

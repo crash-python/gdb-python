@@ -94,9 +94,9 @@ extern void regcache_raw_set_cached_value
 
 extern enum register_status
   regcache_raw_read_part (struct regcache *regcache, int regnum,
-			  int offset, int len, gdb_byte *buf);
+			  int offset, LONGEST len, gdb_byte *buf);
 void regcache_raw_write_part (struct regcache *regcache, int regnum,
-			      int offset, int len, const gdb_byte *buf);
+			      int offset, LONGEST len, const gdb_byte *buf);
 
 void regcache_invalidate (struct regcache *regcache, int regnum);
 
@@ -133,10 +133,11 @@ extern void regcache_cooked_write_unsigned (struct regcache *regcache,
    write style operations.  */
 
 enum register_status regcache_cooked_read_part (struct regcache *regcache,
-						int regnum, int offset,
-						int len, gdb_byte *buf);
+						int regnum, LONGEST offset,
+						LONGEST len, gdb_byte *buf);
 void regcache_cooked_write_part (struct regcache *regcache, int regnum,
-				 int offset, int len, const gdb_byte *buf);
+				 LONGEST offset, LONGEST len,
+				 const gdb_byte *buf);
 
 /* Special routines to read/write the PC.  */
 

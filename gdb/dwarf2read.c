@@ -2069,12 +2069,12 @@ dwarf2_complex_location_expr_complaint (void)
 }
 
 static void
-dwarf2_const_value_length_mismatch_complaint (const char *arg1, int arg2,
-					      int arg3)
+dwarf2_const_value_length_mismatch_complaint (const char *arg1, LONGEST arg2,
+					      LONGEST arg3)
 {
   complaint (&symfile_complaints,
-	     _("const value length mismatch for '%s', got %d, expected %d"),
-	     arg1, arg2, arg3);
+	     _("const value length mismatch for '%s', got %s, expected %s"),
+	     arg1, plongest (arg2), plongest (arg3));
 }
 
 static void
@@ -12886,8 +12886,8 @@ dwarf2_add_field (struct field_info *fip, struct die_info *die,
 	         object, and then subtract off the number of bits of
 	         the field itself.  The result is the bit offset of
 	         the LSB of the field.  */
-	      int anonymous_size;
-	      int bit_offset = DW_UNSND (attr);
+	      LONGEST anonymous_size;
+	      LONGEST bit_offset = DW_UNSND (attr);
 
 	      attr = dwarf2_attr (die, DW_AT_byte_size, cu);
 	      if (attr)

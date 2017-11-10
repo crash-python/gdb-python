@@ -246,7 +246,7 @@ struct lval_funcs
   /* If non-NULL, this is used to determine whether the indicated bits
      of VALUE are a synthetic pointer.  */
   int (*check_synthetic_pointer) (const struct value *value,
-				  LONGEST offset, int length);
+				  LONGEST offset, LONGEST length);
 
   /* Return a duplicate of VALUE's closure, for use in a new value.
      This may simply return the same closure, if VALUE's is
@@ -377,7 +377,8 @@ extern int value_optimized_out (struct value *value);
    otherwise.  */
 
 extern int value_bits_any_optimized_out (const struct value *value,
-					 int bit_offset, int bit_length);
+					 LONGEST bit_offset,
+					 LONGEST bit_length);
 
 /* Like value_optimized_out, but return true iff the whole value is
    optimized out.  */
@@ -387,7 +388,7 @@ extern int value_entirely_optimized_out (struct value *value);
    LENGTH bytes as optimized out.  */
 
 extern void mark_value_bytes_optimized_out (struct value *value,
-					    int offset, int length);
+					    LONGEST offset, LONGEST length);
 
 /* Mark VALUE's content bits starting at OFFSET and extending for
    LENGTH bits as optimized out.  */
@@ -819,12 +820,11 @@ extern struct value *value_primitive_field (struct value *arg1, LONGEST offset,
 					    int fieldno,
 					    struct type *arg_type);
 
-
 extern struct type *value_rtti_indirect_type (struct value *, int *, LONGEST *,
 					      int *);
 
 extern struct value *value_full_object (struct value *, struct type *, int,
-					int, int);
+					LONGEST, int);
 
 extern struct value *value_cast_pointers (struct type *, struct value *, int);
 
@@ -1113,10 +1113,11 @@ extern struct value *value_literal_complex (struct value *, struct value *,
 extern struct value *find_function_in_inferior (const char *,
 						struct objfile **);
 
-extern struct value *value_allocate_space_in_inferior (int);
+extern struct value *value_allocate_space_in_inferior (LONGEST);
 
 extern struct value *value_subscripted_rvalue (struct value *array,
-					       LONGEST index, int lowerbound);
+					       LONGEST index,
+					       LONGEST lowerbound);
 
 /* User function handler.  */
 

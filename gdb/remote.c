@@ -9916,7 +9916,7 @@ int remote_hw_breakpoint_limit = -1;
 
 static int
 remote_region_ok_for_hw_watchpoint (struct target_ops *self,
-				    CORE_ADDR addr, int len)
+				    CORE_ADDR addr, LONGEST len)
 {
   if (remote_hw_watchpoint_length_limit == 0)
     return 0;

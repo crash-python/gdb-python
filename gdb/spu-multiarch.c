@@ -127,7 +127,7 @@ spu_thread_architecture (struct target_ops *ops, ptid_t ptid)
 /* Override the to_region_ok_for_hw_watchpoint routine.  */
 static int
 spu_region_ok_for_hw_watchpoint (struct target_ops *self,
-				 CORE_ADDR addr, int len)
+				 CORE_ADDR addr, LONGEST len)
 {
   struct target_ops *ops_beneath = find_target_beneath (self);
 

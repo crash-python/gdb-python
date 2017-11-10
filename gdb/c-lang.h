@@ -77,7 +77,7 @@ extern void c_print_typedef (struct type *,
 			     struct ui_file *);
 
 extern void c_val_print (struct type *,
-			 int, CORE_ADDR,
+			 LONGEST, CORE_ADDR,
 			 struct ui_file *, int,
 			 struct value *,
 			 const struct value_print_options *);
@@ -97,7 +97,7 @@ extern void c_printchar (int, struct type *, struct ui_file *);
 extern void c_printstr (struct ui_file * stream,
 			struct type *elttype,
 			const gdb_byte *string,
-			unsigned int length,
+			ULONGEST length,
 			const char *user_encoding,
 			int force_ellipses,
 			const struct value_print_options *options);

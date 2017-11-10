@@ -584,7 +584,7 @@ mips_linux_stopped_data_address (struct target_ops *t, CORE_ADDR *paddr)
 
 static int
 mips_linux_region_ok_for_hw_watchpoint (struct target_ops *self,
-					CORE_ADDR addr, int len)
+					CORE_ADDR addr, LONGEST len)
 {
   struct pt_watch_regs dummy_regs;
   int i;

@@ -988,7 +988,7 @@ typedef void (regcache_write_ftype) (struct regcache *regcache, int regnum,
 
 static enum register_status
 regcache_xfer_part (struct regcache *regcache, int regnum,
-		    int offset, int len, void *in, const void *out,
+		    LONGEST offset, LONGEST len, void *in, const void *out,
 		    enum register_status (*read) (struct regcache *regcache,
 						  int regnum,
 						  gdb_byte *buf),
@@ -1033,7 +1033,7 @@ regcache_xfer_part (struct regcache *regcache, int regnum,
 
 enum register_status
 regcache_raw_read_part (struct regcache *regcache, int regnum,
-			int offset, int len, gdb_byte *buf)
+			int offset, LONGEST len, gdb_byte *buf)
 {
   struct regcache_descr *descr = regcache->descr;
 
@@ -1044,7 +1044,7 @@ regcache_raw_read_part (struct regcache *regcache, int regnum,
 
 void
 regcache_raw_write_part (struct regcache *regcache, int regnum,
-			 int offset, int len, const gdb_byte *buf)
+			 int offset, LONGEST len, const gdb_byte *buf)
 {
   struct regcache_descr *descr = regcache->descr;
 
@@ -1055,7 +1055,7 @@ regcache_raw_write_part (struct regcache *regcache, int regnum,
 
 enum register_status
 regcache_cooked_read_part (struct regcache *regcache, int regnum,
-			   int offset, int len, gdb_byte *buf)
+			   LONGEST offset, LONGEST len, gdb_byte *buf)
 {
   struct regcache_descr *descr = regcache->descr;
 
@@ -1066,7 +1066,7 @@ regcache_cooked_read_part (struct regcache *regcache, int regnum,
 
 void
 regcache_cooked_write_part (struct regcache *regcache, int regnum,
-			    int offset, int len, const gdb_byte *buf)
+			    LONGEST offset, LONGEST len, const gdb_byte *buf)
 {
   struct regcache_descr *descr = regcache->descr;
 

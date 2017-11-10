@@ -280,7 +280,7 @@ print_formatted (struct value *val, int size,
 		 struct ui_file *stream)
 {
   struct type *type = check_typedef (value_type (val));
-  int len = TYPE_LENGTH (type);
+  LONGEST len = TYPE_LENGTH (type);
 
   if (VALUE_LVAL (val) == lval_memory)
     next_address = value_address (val) + len;
@@ -357,7 +357,7 @@ print_scalar_formatted (const gdb_byte *valaddr, struct type *type,
 {
   struct gdbarch *gdbarch = get_type_arch (type);
   LONGEST val_long = 0;
-  unsigned int len = TYPE_LENGTH (type);
+  ULONGEST len = TYPE_LENGTH (type);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
 
   /* String printing should go through val_print_scalar_formatted.  */
