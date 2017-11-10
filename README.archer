@@ -1,0 +1,2 @@
+This branch originally held the Python code for gdb.  It still exists
+because a small amount of code here has not yet been merged upstream.

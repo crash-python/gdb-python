@@ -33,6 +33,7 @@
 
 #include "interps.h"
 #include "main.h"
+#include "python/python.h"
 #include "source.h"
 #include "cli/cli-cmds.h"
 #include "objfiles.h"
@@ -459,7 +460,7 @@ struct cmdarg
 };
 
 static void
-captured_main_1 (struct captured_main_args *context)
+captured_main_1 (struct captured_main_args *context, int &python_script)
 {
   int argc = context->argc;
   char **argv = context->argv;
@@ -676,10 +677,14 @@ captured_main_1 (struct captured_main_args *context)
       {"args", no_argument, &set_args, 1},
       {"l", required_argument, 0, 'l'},
       {"return-child-result", no_argument, &return_child_result, 1},
+#if HAVE_PYTHON
+      {"python", no_argument, 0, 'P'},
+      {"P", no_argument, 0, 'P'},
+#endif
       {0, no_argument, 0, 0}
     };
 
-    while (1)
+    while (!python_script)
       {
 	int option_index;
 
@@ -696,6 +701,9 @@ captured_main_1 (struct captured_main_args *context)
 	  {
 	  case 0:
 	    /* Long option that just sets a flag.  */
+	    break;
+	  case 'P':
+	    python_script = 1;
 	    break;
 	  case OPT_SE:
 	    symarg = optarg;
@@ -855,7 +863,31 @@ captured_main_1 (struct captured_main_args *context)
 
   /* Now that gdb_init has created the initial inferior, we're in
      position to set args for that inferior.  */
-  if (set_args)
+  if (python_script)
+    {
+      /* The first argument is a python script to evaluate, and
+	 subsequent arguments are passed to the script for
+	 processing there.  */
+      if (optind >= argc)
+	{
+	  fprintf_unfiltered (gdb_stderr,
+			      _("%s: Python script file name required\n"),
+			      argv[0]);
+	  exit (1);
+	}
+
+      /* FIXME: should handle inferior I/O intelligently here.
+	 E.g., should be possible to run gdb in pipeline and have
+	 Python (and gdb) output go to stderr or file; and if a
+	 prompt is needed, open the tty.  */
+      quiet = 1;
+      /* FIXME: should read .gdbinit if, and only if, a prompt is
+	 requested by the script.  Though... maybe this is not
+	 ideal?  */
+      /* FIXME: likewise, reading in history.  */
+      inhibit_gdbinit = 1;
+    }
+  else if (set_args)
     {
       /* The remaining options are the command-line options for the
 	 inferior.  The first one is the sym/exec file, and the rest
@@ -1125,7 +1157,8 @@ captured_main_1 (struct captured_main_args *context)
 
   /* Read in the old history after all the command files have been
      read.  */
-  init_history ();
+  if (!python_script)
+    init_history ();
 
   if (batch_flag)
     {
@@ -1138,16 +1171,29 @@ static void
 captured_main (void *data)
 {
   struct captured_main_args *context = (struct captured_main_args *) data;
+  int python_script = 0;
 
-  captured_main_1 (context);
+  captured_main_1 (context, python_script);
 
-  /* NOTE: cagney/1999-11-07: There is probably no reason for not
-     moving this loop and the code found in captured_command_loop()
-     into the command_loop() proper.  The main thing holding back that
-     change - SET_TOP_LEVEL() - has been eliminated.  */
-  while (1)
+#if HAVE_PYTHON
+  if (python_script)
     {
-      catch_errors (captured_command_loop, 0, "", RETURN_MASK_ALL);
+      extern int pagination_enabled;
+      pagination_enabled = 0;
+      run_python_script (context->argc - optind, &context->argv[optind]);
+      return;
+    }
+  else
+#endif
+    {
+      /* NOTE: cagney/1999-11-07: There is probably no reason for not
+	 moving this loop and the code found in captured_command_loop()
+	 into the command_loop() proper.  The main thing holding back that
+	 change - SET_TOP_LEVEL() - has been eliminated. */
+      while (1)
+	{
+	  catch_errors (captured_command_loop, 0, "", RETURN_MASK_ALL);
+	}
     }
   /* No exit -- exit is through quit_command.  */
 }
@@ -1190,6 +1236,12 @@ print_gdb_help (struct ui_file *stream)
   fputs_unfiltered (_("\
 This is the GNU debugger.  Usage:\n\n\
     gdb [options] [executable-file [core-file or process-id]]\n\
+    gdb [options] --args executable-file [inferior-arguments ...]\n"), stream);
+#if HAVE_PYTHON
+  fputs_unfiltered (_("\
+    gdb [options] [--python|-P] script-file [script-arguments ...]\n"), stream);
+#endif
+  fputs_unfiltered (_("\n\
     gdb [options] --args executable-file [inferior-arguments ...]\n\n\
 "), stream);
   fputs_unfiltered (_("\
@@ -1234,6 +1286,13 @@ Output and user interface control:\n\n\
 #endif
   fputs_unfiltered (_("\
   --dbx              DBX compatibility mode.\n\
+"), stream);
+#if HAVE_PYTHON
+  fputs_unfiltered (_("\
+  --python, -P       Following argument is Python script file; remaining\n\
+                     arguments are passed to script.\n"), stream);
+#endif
+  fputs_unfiltered (_("\
   -q, --quiet, --silent\n\
                      Do not print version number on startup.\n\n\
 "), stream);
