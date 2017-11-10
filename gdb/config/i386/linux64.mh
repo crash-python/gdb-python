@@ -7,7 +7,7 @@ NATDEPFILES= inf-ptrace.o fork-child.o \
 	linux-procfs.o linux-ptrace.o linux-btrace.o \
 	linux-waitpid.o linux-personality.o x86-linux.o \
 	x86-linux-dregs.o amd64-linux-siginfo.o linux-namespaces.o
-NAT_FILE= config/nm-linux.h
+NAT_FILE= nm-linux64.h
 NAT_CDEPS = $(srcdir)/proc-service.list
 
 # The dynamically loaded libthread_db needs access to symbols in the
