@@ -23,6 +23,7 @@
 #include "python-internal.h"
 #include "language.h"
 #include "arch-utils.h"
+#include "py-ref.h"
 
 #include "py-target.h"
 
@@ -116,9 +117,8 @@ static pytarget_object * target_ops_to_target_obj(struct target_ops *ops)
 
 // Identify if our class (self) has a method to support this call
 #define HasMethodOrReturnBeneath(py_ob, op, ops, args...)	\
-	if (!PyObject_HasAttrString(py_ob, #op))		\
+	if (!gdb_PyObject_HasAttrString(py_ob, #op))		\
 	{							\
-	    do_cleanups (cleanup);				\
 	    ops = ops->beneath;					\
 	    return ops->op(ops, ##args);			\
 	}
@@ -137,57 +137,46 @@ char *py_target_to_thread_name (struct target_ops *ops,
 {
     pytarget_object *target_obj = target_ops_to_target_obj (ops);
     PyObject *self = (PyObject *) target_obj;
-    PyObject *arglist  = NULL;
-    PyObject *result   = NULL;
-    PyObject *callback = NULL;
-    PyObject *thread   = NULL;
-    char *name = NULL;
     static char *static_buf;
-
-    struct cleanup *cleanup;
-
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
+    char *ret = NULL;
 
     HasMethodOrReturnBeneath (self, to_thread_name, ops, info);
 
-    callback = PyObject_GetAttrString (self, "to_thread_name");
-    if (!callback)
-      goto error;
-    make_cleanup_py_decref (callback);
+    gdbpy_ref<> thread(gdbpy_selected_thread (NULL, NULL));
+    if (thread == NULL)
+      return NULL;
 
-    thread = gdbpy_selected_thread (NULL, NULL);
-    if (!thread)
-      goto error;
-    make_cleanup_py_decref (thread);
+    gdbpy_ref<> result(gdb_PyObject_CallMethod (self, "to_thread_name", "(O)",
+					        thread.get(), NULL));
+    if (result == NULL)
+      return NULL;
 
-    /* Time to call the callback */
-    arglist = Py_BuildValue ("(O)", thread);
-    if (!arglist)
-      goto error;
-    make_cleanup_py_decref (arglist);
+    gdb::unique_xmalloc_ptr<char> name
+       = python_string_to_host_string (result.get());
+    if (name == NULL)
+      return NULL;
 
-    result = PyObject_Call (callback, arglist, NULL);
-    if (!result)
-      goto error;
-    make_cleanup_py_decref (result);
+    /* Do not remove this assignment */
+    static_buf = xstrdup_realloc (name.get(), static_buf);
+    return static_buf;
+}
 
-    name = python_string_to_host_string (result);
-    if (!name)
-      goto error;
-    make_cleanup (xfree, name);
+static const
+char *py_target_to_thread_name_pyerr (struct target_ops *ops,
+				      struct thread_info *info)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-    static_buf = xstrdup_realloc (name, static_buf);
-    name = static_buf;
+  PyErr_Clear ();
 
-error:
-    if (PyErr_Occurred ())
-      {
-	gdbpy_print_stack ();
-	error (_("Error in Python while executing to_thread_name callback."));
-      }
+  const char *ret = py_target_to_thread_name (ops, info);
 
-    do_cleanups (cleanup);
-    return name;
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack();
+      error (_("Error in Python while executing to_thread_name callback."));
+    }
+  return ret;
 }
 
 static enum target_xfer_status
@@ -198,125 +187,148 @@ py_target_to_xfer_partial (struct target_ops *ops,
 {
     pytarget_object *target_obj = target_ops_to_target_obj (ops);
     PyObject *self = (PyObject *) target_obj;
-    PyObject *callback  = NULL;
-    PyObject *readbuf  = NULL;
-    PyObject *writebuf = NULL;
-    PyObject *ret       = NULL;
-
-    struct cleanup *cleanup;
     enum target_xfer_status rt = TARGET_XFER_E_IO;
     unsigned long lret;
-
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
 
     HasMethodOrReturnBeneath (self, to_xfer_partial, ops, object, annex,
 			      gdb_readbuf, gdb_writebuf, offset, len,
 			      xfered_len);
 
-    callback = PyObject_GetAttrString (self, "to_xfer_partial");
-    if (!callback)
-      goto error;
-
+    gdbpy_ref<> readbuf;
     if (gdb_readbuf)
       {
-	readbuf = PyByteArray_FromStringAndSize ((char *) gdb_readbuf, len);
-	if (!readbuf)
-	  goto error;
+	readbuf.reset(PyByteArray_FromStringAndSize (
+						  (char *) gdb_readbuf, len));
+	if (readbuf == NULL)
+	  return rt;
       }
     else
       {
-	readbuf = Py_None;
-	Py_INCREF (Py_None);
+	readbuf.reset(Py_None);
+	Py_INCREF(readbuf.get());
       }
 
+    gdbpy_ref<> writebuf;
     if (gdb_writebuf)
       {
-	writebuf = PyByteArray_FromStringAndSize ((char *) gdb_writebuf, len);
-	if (!writebuf)
-	  goto error;
+	writebuf.reset(PyByteArray_FromStringAndSize (
+						  (char *) gdb_writebuf, len));
+	if (writebuf == NULL)
+	  return rt;
       }
     else
       {
-	writebuf = Py_None;
-	Py_INCREF (Py_None);
+	writebuf.reset(Py_None);
+	Py_INCREF(writebuf.get());
       }
 
-    ret = PyObject_CallFunction (callback, "(isOOKK)", (int)object, annex,
-				 readbuf, writebuf, offset, len);
+    gdbpy_ref<> ret (gdb_PyObject_CallMethod (self, "to_xfer_partial",
+					      "(isOOKK)", (int)object, annex,
+					      readbuf.get(), writebuf.get(),
+					      offset, len));
+
+    if (ret == NULL)
+      return rt;
     if (PyErr_Occurred())
       {
 	if (PyErr_ExceptionMatches (py_target_xfer_eof_error))
 	  {
 	    PyErr_Clear();
 	    rt = TARGET_XFER_EOF;
-	    goto error;
+	    return rt;
 	  }
 	else if (PyErr_ExceptionMatches (PyExc_IOError))
 	  {
 	    PyErr_Clear();
 	    rt = TARGET_XFER_E_IO;
-	    goto error;
+	    return rt;
 	  }
 	else if (PyErr_ExceptionMatches (py_target_xfer_unavailable_error))
 	  {
 	    PyErr_Clear();
 	    rt = TARGET_XFER_UNAVAILABLE;
 	    *xfered_len = len;
-	    goto error;
+	    return rt;
 	  }
 	else
-	  goto error;
+	  return rt;
     }
 
-    lret = PyLong_AsUnsignedLongLong (ret);
+    lret = PyLong_AsUnsignedLongLong (ret.get());
     if (PyErr_Occurred ())
       {
 	PyErr_SetString(PyExc_RuntimeError,
 			"to_xfer_partial callback must return long");
-	goto error;
+	return rt;
       }
 
     if (gdb_readbuf)
       {
-	const char *str = PyByteArray_AsString (readbuf);
-	int l = PyByteArray_Size (readbuf);
+	const char *str = PyByteArray_AsString (readbuf.get());
+	int l = PyByteArray_Size (readbuf.get());
 	memcpy (gdb_readbuf, str, l);
       }
 
-    rt = TARGET_XFER_OK;
     *xfered_len = lret;
-
-error:
-    Py_XDECREF (ret);
-    Py_XDECREF (writebuf);
-    Py_XDECREF (readbuf);
-    Py_XDECREF (callback);
-
-    if (PyErr_Occurred ())
-      {
-	gdbpy_print_stack ();
-	error (_("Error in Python while executing to_xfer_partial callback."));
-      }
-
-    do_cleanups (cleanup);
-    return rt;
+    return TARGET_XFER_OK;
 }
 
-static char *
-py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info)
+static enum target_xfer_status
+py_target_to_xfer_partial_pyerr (struct target_ops *ops,
+				 enum target_object object, const char *annex,
+				 gdb_byte *gdb_readbuf,
+				 const gdb_byte *gdb_writebuf,
+				 ULONGEST offset, ULONGEST len,
+				 ULONGEST *xfered_len)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  PyErr_Clear();
+
+  enum target_xfer_status ret;
+  ret = py_target_to_xfer_partial (ops, object, annex, gdb_readbuf,
+				   gdb_writebuf, offset, len, xfered_len);
+
+  if (PyErr_Occurred ())
+    {
+      gdb_assert(ret != TARGET_XFER_OK);
+      gdbpy_print_stack();
+      error (_("Error in Python while executing to_xfer_partial callback."));
+    }
+
+  return ret;
+}
+
+static const char *
+py_target_to_extra_thread_info (struct target_ops *ops,
+				struct thread_info *info)
 {
     /* Note how we can obtain our Parent Python Object from the ops too */
     pytarget_object *target_obj = target_ops_to_target_obj(ops);
     PyObject * self = (PyObject *)target_obj;
 
-    struct cleanup *cleanup;
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
-
     HasMethodOrReturnBeneath(self, to_extra_thread_info, ops, info);
 
-    do_cleanups(cleanup);
-
     return "Linux task";
+}
+
+static const char *
+py_target_to_extra_thread_info_pyerr (struct target_ops *ops,
+				      struct thread_info *info)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  PyErr_Clear ();
+
+  const char *ret = py_target_to_extra_thread_info (ops, info);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack();
+      error (_("Error in Python while executing to_extra_thread_info callback."));
+    }
+  gdb_assert (ret != NULL);
+  return ret;
 }
 
 static void
@@ -324,40 +336,28 @@ py_target_to_update_thread_list (struct target_ops *ops)
 {
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
-  PyObject *callback = NULL;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-
-  struct cleanup *cleanup;
-
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
 
   HasMethodOrReturnBeneath (self, to_update_thread_list, ops);
 
-  callback = PyObject_GetAttrString (self, "to_update_thread_list");
-  if (!callback)
-    goto error;
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_update_thread_list",
+					       "()", NULL));
+  if (result == NULL)
+    return;
+}
 
-  arglist = Py_BuildValue ("()");
-  if (!arglist)
-    goto error;
+static void
+py_target_to_update_thread_list_pyerr (struct target_ops *ops)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-
-error:
-  Py_XDECREF (result);
-  Py_XDECREF (arglist);
-  Py_XDECREF (callback);
+  PyErr_Clear ();
+  py_target_to_update_thread_list (ops);
 
   if (PyErr_Occurred ())
     {
-      gdbpy_print_stack ();
+      gdbpy_print_stack();
       error (_("Error in Python while executing to_update_thread_list callback."));
     }
-
-  do_cleanups (cleanup);
 }
 
 static int
@@ -365,165 +365,133 @@ py_target_to_thread_alive (struct target_ops *ops, ptid_t ptid)
 {
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject *self = (PyObject *) target_obj;
-  PyObject *ptid_obj = NULL;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-  PyObject *callback = NULL;
-
-  struct cleanup *cleanup;
-  long ret = 0;
-
-  cleanup = ensure_python_env (get_current_arch (), current_language);
 
   HasMethodOrReturnBeneath (self, to_thread_alive, ops, ptid);
 
-  callback = PyObject_GetAttrString (self, "to_thread_alive");
-  if (!callback)
-    goto error;
+  gdbpy_ref<> ptid_obj (gdbpy_create_ptid_object (ptid));
+  if (ptid_obj == NULL)
+    return 0;
 
-  ptid_obj = gdbpy_create_ptid_object (ptid);
-  if (!ptid_obj)
-    goto error;
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_thread_alive", "(O)",
+					       ptid_obj.get(), NULL));
+  if (result == NULL)
+    return 0;
 
-  arglist = Py_BuildValue ("(O)", ptid_obj);
-  if (!arglist)
-    goto error;
-
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-
-  if (!PyBool_Check (result))
+  if (!PyBool_Check (result.get()))
     {
       PyErr_SetString (PyExc_RuntimeError,
 		       "to_thread_alive callback must return True or False");
-      goto error;
+      return 0;
     }
 
-  ret = (result == Py_True);
+  return result == Py_True;
+}
 
-error:
-  Py_XDECREF (result);
-  Py_XDECREF (arglist);
-  Py_XDECREF (ptid_obj);
-  Py_XDECREF (callback);
+static int
+py_target_to_thread_alive_pyerr (struct target_ops *ops, ptid_t ptid)
+{
+  gdbpy_enter enter_py (get_current_arch (), current_language);
+
+  PyErr_Clear ();
+
+  int ret = py_target_to_thread_alive (ops, ptid);
 
   if (PyErr_Occurred ())
     {
-      gdbpy_print_stack ();
+      gdbpy_print_stack();
       error (_("Error in Python while executing to_thread_alive callback."));
     }
 
-  do_cleanups (cleanup);
   return ret;
 }
 
-static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
+static const char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
 {
   /* Note how we can obtain our Parent Python Object from the ops too */
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject *self = (PyObject *) target_obj;
-  PyObject *ptid_obj = NULL;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-  PyObject *callback = NULL;
-
-  struct cleanup *cleanup;
   static char *static_buf;
-  char *ret = NULL;
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
   HasMethodOrReturnBeneath (self, to_pid_to_str, ops, ptid);
 
-  callback = PyObject_GetAttrString (self, "to_pid_to_str");
-  if (!callback)
-    goto error;
-  make_cleanup_py_decref (callback);
+  gdbpy_ref<> ptid_obj (gdbpy_create_ptid_object (ptid));
+  if (ptid_obj == NULL)
+    return NULL;
 
-  ptid_obj = gdbpy_create_ptid_object (ptid);
-  if (!ptid_obj)
-    goto error;
-  make_cleanup_py_decref (ptid_obj);
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_pid_to_str", "(O)",
+					       ptid_obj.get(), NULL));
+  if (result == NULL)
+    return NULL;
 
-  arglist = Py_BuildValue ("(O)", ptid_obj);
-  if (!arglist)
-    goto error;
-  make_cleanup_py_decref (arglist);
+  gdb::unique_xmalloc_ptr<char> ret
+				= python_string_to_host_string (result.get());
+  if (ret == NULL)
+    return NULL;
 
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-  make_cleanup_py_decref (result);
+  /* Do not remove this assignment */
+  static_buf = xstrdup_realloc (ret.get(), static_buf);
+  return static_buf;
+}
 
-  ret = python_string_to_host_string (result);
-  if (!ret)
-    goto error;
-  make_cleanup (xfree, ret);
+static const char *py_target_to_pid_to_str_pyerr (struct target_ops *ops,
+						  ptid_t ptid)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  static_buf = xstrdup_realloc (ret, static_buf);
-  ret = static_buf;
+  PyErr_Clear ();
 
-error:
+  const char *ret = py_target_to_pid_to_str (ops, ptid);
+
   if (PyErr_Occurred ())
     {
-      gdbpy_print_stack ();
+      gdbpy_print_stack();
       error (_("Error in Python while executing to_pid_to_str callback."));
     }
 
-  do_cleanups (cleanup);
   return ret;
 }
+
 
 static void py_target_to_fetch_registers (struct target_ops *ops,
 					  struct regcache *regcache, int reg)
 {
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-  PyObject *callback = NULL;
-  PyObject *reg_obj  = NULL;
-  PyObject *thread = NULL;
 
-  struct cleanup *cleanup;
-
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
   HasMethodOrReturnBeneath (self, to_fetch_registers, ops, regcache, reg);
 
-  callback = PyObject_GetAttrString (self, "to_fetch_registers");
-  if (!callback)
-    goto error;
-  make_cleanup_py_decref (callback);
+  gdbpy_ref<> thread (gdbpy_selected_thread (NULL, NULL));
+  if (thread == NULL)
+    return;
 
-  thread = gdbpy_selected_thread (NULL, NULL);
-  if (!thread)
-    goto error;
-  make_cleanup_py_decref (thread);
+  gdbpy_ref<> reg_obj (
+	    register_to_register_object ((thread_object *) thread.get(), reg));
+  if (reg_obj == NULL)
+    return;
 
-  reg_obj = register_to_register_object ((thread_object *) thread, reg);
-  if (!reg_obj)
-    goto error;
-  make_cleanup_py_decref (reg_obj);
+  gdbpy_ref<> arglist (Py_BuildValue ("(O)", reg_obj.get()));
+  if (arglist == NULL)
+    return;
 
-  arglist = Py_BuildValue ("(O)", reg_obj);
-  if (!arglist)
-    goto error;
-  make_cleanup_py_decref (arglist);
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_fetch_registers",
+					       "(O)", reg_obj.get(), NULL));
+}
 
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-  make_cleanup_py_decref (result);
+static void py_target_to_fetch_registers_pyerr (struct target_ops *ops,
+						struct regcache *regcache,
+						int reg)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-error:
+  PyErr_Clear ();
+
+  py_target_to_fetch_registers (ops, regcache, reg);
 
   if (PyErr_Occurred ())
     {
-      gdbpy_print_stack ();
+      gdbpy_print_stack();
       error (_("Error in Python while executing to_fetch_registers callback."));
     }
-
-  do_cleanups (cleanup);
 }
 
 static void py_target_to_prepare_to_store (struct target_ops *ops,
@@ -531,44 +499,32 @@ static void py_target_to_prepare_to_store (struct target_ops *ops,
 {
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-  PyObject *callback = NULL;
-  PyObject *thread = NULL;
 
-  struct cleanup *cleanup;
-
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
   HasMethodOrReturnBeneath (self, to_prepare_to_store, ops, regcache);
 
-  callback = PyObject_GetAttrString (self, "to_prepare_to_store");
-  if (!callback)
-    goto error;
-  make_cleanup_py_decref (callback);
+  gdbpy_ref<> thread (gdbpy_selected_thread (NULL, NULL));
+  if (thread == NULL)
+    return;
 
-  thread = gdbpy_selected_thread (NULL, NULL);
-  if (!thread)
-    goto error;
-  make_cleanup_py_decref (thread);
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_prepare_to_store",
+					       "(O)", thread.get(), NULL));
+  if (result == NULL)
+    return;
+}
 
-  arglist = Py_BuildValue ("(O)", thread);
-  if (!arglist)
-    goto error;
-  make_cleanup_py_decref (arglist);
+static void py_target_to_prepare_to_store_pyerr (struct target_ops *ops,
+						 struct regcache *regcache)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-  make_cleanup_py_decref (result);
+  PyErr_Clear();
+  py_target_to_prepare_to_store (ops, regcache);
 
-error:
   if (PyErr_Occurred ())
     {
-      gdbpy_print_stack ();
+      gdbpy_print_stack();
       error (_("Error in Python while executing to_prepare_to_store callback."));
     }
-
-  do_cleanups (cleanup);
 }
 
 static void py_target_to_store_registers (struct target_ops *ops,
@@ -576,50 +532,38 @@ static void py_target_to_store_registers (struct target_ops *ops,
 {
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-  PyObject *callback = NULL;
-  PyObject *reg_obj  = NULL;
-  PyObject *thread = NULL;
 
-  struct cleanup *cleanup;
-
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
   HasMethodOrReturnBeneath (self, to_store_registers, ops, regcache, reg);
 
-  callback = PyObject_GetAttrString (self, "to_store_registers");
-  if (!callback)
-    goto error;
-  make_cleanup_py_decref (callback);
+  gdbpy_ref<> thread (gdbpy_selected_thread (NULL, NULL));
+  if (thread == NULL)
+    return;
 
-  thread = gdbpy_selected_thread (NULL, NULL);
-  if (!thread)
-    goto error;
-  make_cleanup_py_decref (thread);
+  gdbpy_ref<> reg_obj (register_to_register_object (
+					(thread_object *) thread.get(), reg));
+  if (reg_obj == NULL)
+    return;
 
-  reg_obj = register_to_register_object ((thread_object *) thread, reg);
-  if (!reg_obj)
-    goto error;
-  make_cleanup_py_decref (reg_obj);
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_store_registers",
+					       "(O)", reg_obj.get(), NULL));
+}
 
-  arglist = Py_BuildValue ("(O)", reg_obj);
-  if (!arglist)
-    goto error;
-  make_cleanup_py_decref (arglist);
+static void py_target_to_store_registers_pyerr (struct target_ops *ops,
+						struct regcache *regcache,
+						int reg)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-  make_cleanup_py_decref (result);
+  PyErr_Clear ();
 
-error:
+  py_target_to_store_registers (ops, regcache, reg);
+
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
       error (_("Error in Python while executing to_store_registers callback."));
     }
 
-  do_cleanups (cleanup);
 }
 
 static int
@@ -627,41 +571,34 @@ py_target_to_has_execution (struct target_ops *ops, ptid_t ptid)
 {
   pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
-  PyObject *arglist  = NULL;
-  PyObject *result   = NULL;
-  PyObject *callback = NULL;
-
-  struct cleanup *cleanup;
   int ret = 0;
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
   HasMethodOrReturnBeneath (self, to_has_execution, ops, ptid);
 
-  callback = PyObject_GetAttrString (self, "to_has_execution");
-  if (!callback)
-    goto error;
+  gdbpy_ref<> result (gdb_PyObject_CallMethod (self, "to_has_execution",
+					       "((iii))", ptid.pid(),
+					       ptid.lwp(), ptid.tid(), NULL));
+  if (result == NULL)
+    return 0;
 
-  arglist = Py_BuildValue ("((iii))", ptid.pid, ptid.lwp, ptid.tid);
-  if (!arglist)
-    goto error;
-
-  result = PyObject_Call (callback, arglist, NULL);
-  if (!result)
-    goto error;
-
-  if (!PyBool_Check (result))
+  if (!PyBool_Check (result.get()))
     {
       PyErr_SetString (PyExc_RuntimeError,
 		       "to_has_exception callback must return True or False");
-      goto error;
+      return 0;
     }
 
-  ret = (result == Py_True);
+  return result == Py_True;
+}
 
-error:
-  Py_XDECREF (result);
-  Py_XDECREF (arglist);
-  Py_XDECREF (callback);
+static int
+py_target_to_has_execution_pyerr (struct target_ops *ops, ptid_t ptid)
+{
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  PyErr_Clear ();
+
+  int ret = py_target_to_has_execution (ops, ptid);
 
   if (PyErr_Occurred ())
     {
@@ -669,9 +606,7 @@ error:
       error (_("Error in Python while executing to_fetch_registers callback."));
     }
 
-  do_cleanups (cleanup);
-
-  return ret;
+    return ret;
 }
 
 static int
@@ -689,16 +624,16 @@ static void py_target_register_ops(struct target_ops * ops)
 	ops->to_longname = xstrdup (_("A Python defined target layer"));
 
     /* Python Wrapper Calls */
-    ops->to_xfer_partial = py_target_to_xfer_partial;
-    ops->to_thread_name = py_target_to_thread_name;
-    ops->to_extra_thread_info = py_target_to_extra_thread_info;
-    ops->to_update_thread_list = py_target_to_update_thread_list;
-    ops->to_thread_alive = py_target_to_thread_alive;
-    ops->to_pid_to_str = py_target_to_pid_to_str;
-    ops->to_fetch_registers = py_target_to_fetch_registers;
-    ops->to_has_execution = py_target_to_has_execution;
-    ops->to_store_registers = py_target_to_store_registers;
-    ops->to_prepare_to_store = py_target_to_prepare_to_store;
+    ops->to_xfer_partial = py_target_to_xfer_partial_pyerr;
+    ops->to_thread_name = py_target_to_thread_name_pyerr;
+    ops->to_extra_thread_info = py_target_to_extra_thread_info_pyerr;
+    ops->to_update_thread_list = py_target_to_update_thread_list_pyerr;
+    ops->to_thread_alive = py_target_to_thread_alive_pyerr;
+    ops->to_pid_to_str = py_target_to_pid_to_str_pyerr;
+    ops->to_fetch_registers = py_target_to_fetch_registers_pyerr;
+    ops->to_has_execution = py_target_to_has_execution_pyerr;
+    ops->to_store_registers = py_target_to_store_registers_pyerr;
+    ops->to_prepare_to_store = py_target_to_prepare_to_store_pyerr;
 
     // This may be the only variable to specify as a parameter in __init__
     ops->to_stratum = thread_stratum;
@@ -792,7 +727,7 @@ tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
   enum target_names target_string = (enum target_names)(unsigned long) arg;
   pytarget_object *target_obj = (pytarget_object *) self;
   struct target_ops *ops = target_obj->ops;
-  char *name = NULL;
+  gdb::unique_xmalloc_ptr<char> name;
 
   THPY_REQUIRE_PYTHON_TARGET (target_obj, 0);
 
@@ -814,7 +749,7 @@ tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
   END_CATCH
 
   /* Needs to be outside of the TRY/CATCH block */
-  if (!name)
+  if (name == NULL)
     return -1;
 
   switch (target_string)
@@ -825,11 +760,11 @@ tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
 	break;
     case TGT_SHORTNAME:
 	xfree ((void *)ops->to_shortname);
-	ops->to_shortname = name;
+	ops->to_shortname = name.get();
 	break;
     case TGT_LONGNAME:
 	xfree ((void *)ops->to_longname);
-	ops->to_longname = name;
+	ops->to_longname = name.get();
 	break;
     }
 
