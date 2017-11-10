@@ -316,6 +316,17 @@ msympy_dealloc (PyObject *obj)
   msym_obj->bound.objfile = NULL;
 }
 
+char *
+gdb_PyUnicode_AsUTF8(PyObject *obj)
+{
+#ifdef IS_PY3K
+  return PyUnicode_AsUTF8(obj);
+#else
+  gdbpy_ref<> ucode = PyUnicode_AsUTF8String(obj);
+  return PyBytes_AsString(ucode);
+#endif
+}
+
 /* Implementation of
    gdb.lookup_minimal_symbol (name, [sfile, [objfile]]) -> symbol or None.  */
 
@@ -335,7 +346,18 @@ gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args, PyObject *kw)
 
   if (sfile_obj && sfile_obj != Py_None)
     {
-      sfile = PyString_AsString (sfile_obj);
+      if (PyUnicode_Check(sfile_obj))
+	{
+	  sfile = gdb_PyUnicode_AsUTF8(sfile_obj);
+	}
+      else if (PyBytes_Check(sfile_obj))
+	{
+	  sfile = PyBytes_AS_STRING(sfile_obj); // Borrowed pointer
+	}
+      else
+	{
+	  /* wtf is this garbage */
+	}
       if (!sfile)
 	return NULL;
     }
