@@ -205,6 +205,7 @@ register_set_value(PyObject *self, PyObject *value_obj, void *closure)
 	      ret = write_register (regcache, obj->regnum, &ul_value);
 	    }
 	}
+#ifndef IS_PY3K
       else if (PyInt_Check (value_obj))
 	{
 	  ul_value = PyInt_AsUnsignedLongMask (value_obj);
@@ -216,6 +217,7 @@ register_set_value(PyObject *self, PyObject *value_obj, void *closure)
 	      ret = write_register (regcache, obj->regnum, &ul_value);
 	    }
 	}
+#endif
       else
 	{
 	  value = value_object_to_value(value_obj);
