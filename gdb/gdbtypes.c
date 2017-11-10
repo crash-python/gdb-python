@@ -1839,7 +1839,8 @@ is_dynamic_type_internal (struct type *type, int top_level)
   type = check_typedef (type);
 
   /* We only want to recognize references at the outermost level.  */
-  if (top_level && TYPE_CODE (type) == TYPE_CODE_REF)
+  if (top_level &&
+      (TYPE_CODE (type) == TYPE_CODE_REF || TYPE_CODE (type) == TYPE_CODE_PTR))
     type = check_typedef (TYPE_TARGET_TYPE (type));
 
   /* Types that have a dynamic TYPE_DATA_LOCATION are considered
@@ -1873,6 +1874,7 @@ is_dynamic_type_internal (struct type *type, int top_level)
       }
 
     case TYPE_CODE_ARRAY:
+    case TYPE_CODE_STRING:
       {
 	gdb_assert (TYPE_NFIELDS (type) == 1);
 
@@ -1985,7 +1987,8 @@ resolve_dynamic_array (struct type *type,
   struct type *ary_dim;
   struct dynamic_prop *prop;
 
-  gdb_assert (TYPE_CODE (type) == TYPE_CODE_ARRAY);
+  gdb_assert (TYPE_CODE (type) == TYPE_CODE_ARRAY
+	      || TYPE_CODE (type) == TYPE_CODE_STRING);
 
   type = copy_type (type);
 
@@ -2010,13 +2013,17 @@ resolve_dynamic_array (struct type *type,
 
   ary_dim = check_typedef (TYPE_TARGET_TYPE (elt_type));
 
-  if (ary_dim != NULL && TYPE_CODE (ary_dim) == TYPE_CODE_ARRAY)
+  if (ary_dim != NULL && (TYPE_CODE (ary_dim) == TYPE_CODE_ARRAY
+      || TYPE_CODE (ary_dim) == TYPE_CODE_STRING))
     elt_type = resolve_dynamic_array (ary_dim, addr_stack);
   else
     elt_type = TYPE_TARGET_TYPE (type);
 
-  return create_array_type_with_stride (type, elt_type, range_type,
-                                        TYPE_FIELD_BITSIZE (type, 0));
+  if (TYPE_CODE (type) == TYPE_CODE_STRING)
+    return create_string_type (type, elt_type, range_type);
+  else
+    return create_array_type_with_stride (type, elt_type, range_type,
+					  TYPE_FIELD_BITSIZE (type, 0));
 }
 
 /* Resolve dynamic bounds of members of the union TYPE to static
@@ -2146,6 +2153,28 @@ resolve_dynamic_struct (struct type *type,
   return resolved_type;
 }
 
+/* Worker for pointer types.  */
+
+static struct type *
+resolve_dynamic_pointer (struct type *type,
+			 struct property_addr_info *addr_stack)
+{
+  struct dynamic_prop *prop;
+  CORE_ADDR value;
+
+  type = copy_type (type);
+
+  /* Resolve associated property.  */
+  prop = TYPE_ASSOCIATED_PROP (type);
+  if (prop != NULL && dwarf2_evaluate_property (prop, NULL, addr_stack, &value))
+    {
+      TYPE_DYN_PROP_ADDR (prop) = value;
+      TYPE_DYN_PROP_KIND (prop) = PROP_CONST;
+    }
+
+  return type;
+}
+
 /* Worker for resolved_dynamic_type.  */
 
 static struct type *
@@ -2194,7 +2223,12 @@ resolve_dynamic_type_internal (struct type *type,
 	    break;
 	  }
 
+        case TYPE_CODE_PTR:
+ 	  resolved_type = resolve_dynamic_pointer (type, addr_stack);
+ 	  break;
+
 	case TYPE_CODE_ARRAY:
+	case TYPE_CODE_STRING:
 	  resolved_type = resolve_dynamic_array (type, addr_stack);
 	  break;
 
