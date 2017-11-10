@@ -43,10 +43,11 @@ fi
 dir="${file%/*}"
 test "$dir" = "$file" && dir="."
 index="${file}.gdb-index"
+mode="${file}.mode"
 
-rm -f $index
+rm -f $index $mode
 # Ensure intermediate index file is removed when we exit.
-trap "rm -f $index" 0
+trap "rm -f $index $mode" 0
 
 $GDB --batch -nx -iex 'set auto-load no' \
     -ex "file $file" -ex "save gdb-index $dir" || {
@@ -63,8 +64,13 @@ $GDB --batch -nx -iex 'set auto-load no' \
 status=0
 
 if test -f "$index"; then
+    touch "$mode"
+    chmod --reference="$file" "$mode"
+    # objcopy: unable to copy file 'foo.debug'; reason: Permission denied
+    chmod u+w "$file"
     $OBJCOPY --add-section .gdb_index="$index" \
 	--set-section-flags .gdb_index=readonly "$file" "$file"
+    chmod --reference="$mode" "$file"
     status=$?
 else
     echo "$myname: No index was created for $file" 1>&2
