@@ -473,17 +473,28 @@ save_current_space_and_thread (void)
 void
 switch_to_program_space_and_thread (struct program_space *pspace)
 {
-  struct inferior *inf;
+  struct inferior *inf = current_inferior ();
 
-  inf = find_inferior_for_program_space (pspace);
+  if (inf->pspace != pspace)
+    inf = find_inferior_for_program_space (pspace);
   if (inf != NULL && inf->pid != 0)
     {
-      struct thread_info *tp;
+      struct thread_info *tp, *current_tp = NULL;
+
+      if (ptid_get_pid (inferior_ptid) == inf->pid)
+	current_tp = find_thread_ptid (inferior_ptid);
 
       tp = any_live_thread_of_process (inf->pid);
       if (tp != NULL)
 	{
-	  switch_to_thread (tp->ptid);
+	  /* Prefer primarily thread not THREAD_EXITED and secondarily thread
+	     not EXECUTING.  */
+	  if (current_tp == NULL
+	      || (tp->state != THREAD_EXITED
+		  && current_tp->state == THREAD_EXITED)
+	      || (!tp->executing && current_tp->executing))
+	    switch_to_thread (tp->ptid);
+
 	  /* Switching thread switches pspace implicitly.  We're
 	     done.  */
 	  return;
