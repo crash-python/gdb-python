@@ -480,12 +480,16 @@ write_exp_msymbol (struct parser_state *ps,
   struct objfile *objfile = bound_msym.objfile;
   struct gdbarch *gdbarch = get_objfile_arch (objfile);
 
-  CORE_ADDR addr = BMSYMBOL_VALUE_ADDRESS (bound_msym);
   struct obj_section *section = MSYMBOL_OBJ_SECTION (objfile, msymbol);
   enum minimal_symbol_type type = MSYMBOL_TYPE (msymbol);
-  CORE_ADDR pc;
+  CORE_ADDR addr, pc;
   const int is_tls = (section != NULL
 		      && section->the_bfd_section->flags & SEC_THREAD_LOCAL);
+
+  if (is_tls)
+    addr = MSYMBOL_VALUE_RAW_ADDRESS (bound_msym.minsym);
+  else
+    addr = BMSYMBOL_VALUE_ADDRESS (bound_msym);
 
   /* The minimal symbol might point to a function descriptor;
      resolve it to the actual code address instead.  */
