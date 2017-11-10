@@ -40,6 +40,7 @@
 #include "buffer.h"
 #include "ser-event.h"
 #include "gdb_select.h"
+#include "symfile.h"
 
 /* readline include files.  */
 #include "readline/readline.h"
@@ -359,6 +360,8 @@ display_gdb_prompt (const char *new_prompt)
 
   /* Reset the nesting depth used when trace-commands is set.  */
   reset_command_nest_depth ();
+
+  debug_flush_missing ();
 
   old_chain = make_cleanup (free_current_contents, &actual_gdb_prompt);
 
@@ -780,7 +783,10 @@ command_line_handler (char *rl)
       command_handler (cmd);
 
       if (ui->prompt_state != PROMPTED)
-	display_gdb_prompt (0);
+	{
+	  debug_flush_missing ();
+	  display_gdb_prompt (0);
+	}
     }
 }
 
