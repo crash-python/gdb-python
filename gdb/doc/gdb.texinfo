@@ -1037,6 +1037,12 @@ Read each symbol file's entire symbol table immediately, rather than
 the default, which is to read it incrementally as it is needed.
 This makes startup slower, but makes future operations faster.
 
+@item --readnever
+@cindex @code{--readnever}
+Do not read each symbol file's symbolic debug information.  This makes
+startup faster but at the expense of not being able to perform
+symbolic debugging.
+
 @end table
 
 @node Mode Options

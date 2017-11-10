@@ -79,6 +79,7 @@ static void clear_symtab_users_cleanup (void *ignore);
 
 /* Global variables owned by this file.  */
 int readnow_symbol_files;	/* Read full symbols immediately.  */
+int readnever_symbol_files;	/* Never read full symbols.  */
 
 /* Functions this file defines.  */
 

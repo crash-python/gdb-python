@@ -615,6 +615,7 @@ captured_main_1 (struct captured_main_args *context, int &python_script)
       {"tui", no_argument, 0, OPT_TUI},
       {"dbx", no_argument, &dbx_commands, 1},
       {"readnow", no_argument, &readnow_symbol_files, 1},
+      {"readnever", no_argument, &readnever_symbol_files, 1},
       {"r", no_argument, &readnow_symbol_files, 1},
       {"quiet", no_argument, &quiet, 1},
       {"q", no_argument, &quiet, 1},
@@ -1254,6 +1255,7 @@ Selection of debuggee and its files:\n\n\
   --se=FILE          Use FILE as symbol file and executable file.\n\
   --symbols=SYMFILE  Read symbols from SYMFILE.\n\
   --readnow          Fully read symbol files on first access.\n\
+  --readnever        Do not read symbol files.\n\
   --write            Set writing into executable and core files.\n\n\
 "), stream);
   fputs_unfiltered (_("\

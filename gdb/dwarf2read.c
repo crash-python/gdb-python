@@ -73,6 +73,7 @@
 #include "common/function-view.h"
 #include "common/gdb_optional.h"
 #include "common/underlying.h"
+#include "top.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -2213,7 +2214,8 @@ dwarf2_has_info (struct objfile *objfile,
                              (void *) names);
       dwarf2_per_objfile->objfile = objfile;
     }
-  return (!dwarf2_per_objfile->info.is_virtual
+  return !readnever_symbol_files &&
+	 (!dwarf2_per_objfile->info.is_virtual
 	  && dwarf2_per_objfile->info.s.section != NULL
 	  && !dwarf2_per_objfile->abbrev.is_virtual
 	  && dwarf2_per_objfile->abbrev.s.section != NULL);
