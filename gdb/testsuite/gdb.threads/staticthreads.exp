@@ -41,6 +41,13 @@ gdb_test_no_output "set print sevenbit-strings"
 # See if the static multi-threaded program runs.
 
 runto_main
+
+# See if we get excessive LWP there (patched glibc with unpatched GDB):
+# * 2 Thread 135661664 (LWP 3856)  main () at threadloop.c:41
+#   1 process 3856  main () at threadloop.c:41
+
+gdb_test "info threads" "^info threads\r\n\[ \t\]*Id\[ \t\]+Target Id\[ \t\]+Frame\[ \t\]*\r\n\[^\r\n\]* Thread \[^\r\n\]*" "info threads on start"
+
 gdb_test "break sem_post"
 set test "continue to main's call of sem_post"
 gdb_test_multiple "continue" "$test" {
