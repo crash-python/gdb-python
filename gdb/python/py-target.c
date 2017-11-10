@@ -304,13 +304,30 @@ static const char *
 py_target_to_extra_thread_info (struct target_ops *ops,
 				struct thread_info *info)
 {
-    /* Note how we can obtain our Parent Python Object from the ops too */
-    pytarget_object *target_obj = target_ops_to_target_obj(ops);
-    PyObject * self = (PyObject *)target_obj;
+    pytarget_object *target_obj = target_ops_to_target_obj (ops);
+    PyObject *self = (PyObject *) target_obj;
+    static char *static_buf;
+    char *ret = NULL;
 
-    HasMethodOrReturnBeneath(self, to_extra_thread_info, ops, info);
+    HasMethodOrReturnBeneath (self, to_extra_thread_info, ops, info);
 
-    return "Linux task";
+    gdbpy_ref<> thread(gdbpy_selected_thread (NULL, NULL));
+    if (thread == NULL)
+      return NULL;
+
+    gdbpy_ref<> result(gdb_PyObject_CallMethod (self, "to_extra_thread_info",
+						"(O)", thread.get(), NULL));
+    if (result == NULL)
+      return NULL;
+
+    gdb::unique_xmalloc_ptr<char> name
+       = python_string_to_host_string (result.get());
+    if (name == NULL)
+      return NULL;
+
+    /* Do not remove this assignment */
+    static_buf = xstrdup_realloc (name.get(), static_buf);
+    return static_buf;
 }
 
 static const char *
@@ -328,7 +345,6 @@ py_target_to_extra_thread_info_pyerr (struct target_ops *ops,
       gdbpy_print_stack();
       error (_("Error in Python while executing to_extra_thread_info callback."));
     }
-  gdb_assert (ret != NULL);
   return ret;
 }
 
