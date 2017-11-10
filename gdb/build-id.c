@@ -838,9 +838,9 @@ missing_rpm_enlist_1 (const char *filename, int verify_vendor)
 	  if (h == NULL)
 	    break;
 
-	  /* Verify the debuginfo file is not already installed.  */
-
-	  debuginfo = headerFormat_p (h, "%{sourcerpm}-debuginfo.%{arch}",
+	  /* The allocated memory gets utilized below for MISSING_RPM_HASH.  */
+	  debuginfo = headerFormat_p (h,
+				      "%{name}-debuginfo-%{version}-%{release}.%{arch}",
 				      &err);
 	  if (!debuginfo)
 	    {
@@ -848,58 +848,17 @@ missing_rpm_enlist_1 (const char *filename, int verify_vendor)
 	               err);
 	      continue;
 	    }
-	  /* s = `.src.rpm-debuginfo.%{arch}' */
-	  s = strrchr (debuginfo, '-') - srcrpmlen;
-	  s2 = NULL;
-	  if (s > debuginfo && memcmp (s, ".src.rpm", srcrpmlen) == 0)
-	    {
-	      /* s2 = `-%{release}.src.rpm-debuginfo.%{arch}' */
-	      s2 = (char *) memrchr (debuginfo, '-', s - debuginfo);
-	    }
-	  if (s2)
-	    {
-	      /* s2 = `-%{version}-%{release}.src.rpm-debuginfo.%{arch}' */
-	      s2 = (char *) memrchr (debuginfo, '-', s2 - debuginfo);
-	    }
-	  if (!s2)
-	    {
-	      warning (_("Error querying the rpm file `%s': %s"), filename,
-	               debuginfo);
-	      xfree (debuginfo);
-	      continue;
-	    }
-	  /* s = `.src.rpm-debuginfo.%{arch}' */
-	  /* s2 = `-%{version}-%{release}.src.rpm-debuginfo.%{arch}' */
-	  memmove (s2 + debuginfolen, s2, s - s2);
-	  memcpy (s2, "-debuginfo", debuginfolen);
-	  /* s = `XXXX.%{arch}' */
-	  /* strlen ("XXXX") == srcrpmlen + debuginfolen */
-	  /* s2 = `-debuginfo-%{version}-%{release}XX.%{arch}' */
-	  /* strlen ("XX") == srcrpmlen */
-	  memmove (s + debuginfolen, s + srcrpmlen + debuginfolen,
-		   strlen (s + srcrpmlen + debuginfolen) + 1);
-	  /* s = `-debuginfo-%{version}-%{release}.%{arch}' */
 
+	  /* Verify the debuginfo file is not already installed.  */
 	  /* RPMDBI_PACKAGES requires keylen == sizeof (int).  */
 	  /* RPMDBI_LABEL is an interface for NVR-based dbiFindByLabel().  */
 	  mi_debuginfo = rpmtsInitIterator_p (ts, (rpmTag) RPMDBI_LABEL, debuginfo, 0);
-	  xfree (debuginfo);
 	  if (mi_debuginfo)
 	    {
+	      xfree (debuginfo);
 	      rpmdbFreeIterator_p (mi_debuginfo);
 	      count = 0;
 	      break;
-	    }
-
-	  /* The allocated memory gets utilized below for MISSING_RPM_HASH.  */
-	  debuginfo = headerFormat_p (h,
-				      "%{name}-%{version}-%{release}.%{arch}",
-				      &err);
-	  if (!debuginfo)
-	    {
-	      warning (_("Error querying the rpm file `%s': %s"), filename,
-	               err);
-	      continue;
 	    }
 
 	  /* Base package name for `debuginfo-install'.  We do not use the
@@ -1032,10 +991,7 @@ missing_rpm_list_print (void)
 	 (int (*) (const void *, const void *)) missing_rpm_list_compar);
 
   printf_unfiltered (_("Missing separate debuginfos, use: %s"),
-#ifdef DNF_DEBUGINFO_INSTALL
-		     "dnf "
-#endif
-		     "debuginfo-install");
+		     "zypper install");
   for (array_iter = array; array_iter < array + missing_rpm_list_entries;
        array_iter++)
     {
@@ -1248,13 +1204,12 @@ debug_print_missing (const char *binary, const char *debug)
 	fprintf_unfiltered (gdb_stdlog,
 			    _("Missing separate debuginfo for %s\n"), binary);
         if (debug != NULL)
-	  fprintf_unfiltered (gdb_stdlog, _("Try: %s %s\n"),
-#ifdef DNF_DEBUGINFO_INSTALL
-			      "dnf"
-#else
-			      "yum"
-#endif
-			      " --enablerepo='*debug*' install", debug);
+	  {
+	    const char *p = strrchr (debug, '/');
+	    fprintf_unfiltered (gdb_stdlog, _("Try: %s%.2s%.38s\"\n"),
+				"zypper install -C \"debuginfo(build-id)=",
+				p - 2, p + 1);
+	  }
       }
 }
 
