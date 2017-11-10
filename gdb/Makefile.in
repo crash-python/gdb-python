@@ -2032,7 +2032,7 @@ info install-info clean-info dvi pdf install-pdf html install-html: force
 install: all
 	@$(MAKE) $(FLAGS_TO_PASS) install-only
 
-install-only: $(CONFIG_INSTALL)
+install-only: install-gstack $(CONFIG_INSTALL)
 	transformed_name=`t='$(program_transform_name)'; \
 			  echo gdb | sed -e "$$t"` ; \
 		if test "x$$transformed_name" = x; then \
@@ -2072,7 +2072,25 @@ install-guile:
 install-python:
 	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(GDB_DATADIR)/python/gdb
 
-uninstall: force $(CONFIG_UNINSTALL)
+GSTACK=gstack
+.PHONY: install-gstack
+install-gstack:
+	transformed_name=`t='$(program_transform_name)'; \
+			  echo $(GSTACK) | sed -e "$$t"` ; \
+		if test "x$$transformed_name" = x; then \
+		  transformed_name=$(GSTACK) ; \
+		else \
+		  true ; \
+		fi ; \
+		$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(bindir) ; \
+		$(INSTALL_PROGRAM) $(srcdir)/$(GSTACK).sh \
+			$(DESTDIR)$(bindir)/$$transformed_name$(EXEEXT) ; \
+		: $(SHELL) $(srcdir)/../mkinstalldirs \
+			$(DESTDIR)$(man1dir) ; \
+		: $(INSTALL_DATA) $(srcdir)/gstack.1 \
+			$(DESTDIR)$(man1dir)/$$transformed_name.1
+
+uninstall: force uninstall-gstack $(CONFIG_UNINSTALL)
 	transformed_name=`t='$(program_transform_name)'; \
 			  echo gdb | sed -e $$t` ; \
 		if test "x$$transformed_name" = x; then \
@@ -2094,6 +2112,18 @@ uninstall: force $(CONFIG_UNINSTALL)
 		  rm -f $(DESTDIR)$(bindir)/$$transformed_name; \
 	fi
 	@$(MAKE) DO=uninstall "DODIRS=$(SUBDIRS)" $(FLAGS_TO_PASS) subdir_do
+
+.PHONY: uninstall-gstack
+uninstall-gstack:
+	transformed_name=`t='$(program_transform_name)'; \
+			  echo $(GSTACK) | sed -e $$t` ; \
+		if test "x$$transformed_name" = x; then \
+		  transformed_name=$(GSTACK) ; \
+		else \
+		  true ; \
+		fi ; \
+		rm -f $(DESTDIR)$(bindir)/$$transformed_name$(EXEEXT) \
+		      $(DESTDIR)$(man1dir)/$$transformed_name.1
 
 # The C++ name parser can be built standalone for testing.
 test-cp-name-parser.o: cp-name-parser.c
