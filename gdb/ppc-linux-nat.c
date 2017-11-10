@@ -1803,11 +1803,11 @@ can_use_watchpoint_cond_accel (void)
    CONDITION_VALUE will hold the value which should be put in the
    DVC register.  */
 static void
-calculate_dvc (CORE_ADDR addr, int len, CORE_ADDR data_value,
+calculate_dvc (CORE_ADDR addr, LONGEST len, CORE_ADDR data_value,
 	       uint32_t *condition_mode, uint64_t *condition_value)
 {
-  int i, num_byte_enable, align_offset, num_bytes_off_dvc,
-      rightmost_enabled_byte;
+  LONGEST i, num_byte_enable;
+  int align_offset, num_bytes_off_dvc, rightmost_enabled_byte;
   CORE_ADDR addr_end_data, addr_end_dvc;
 
   /* The DVC register compares bytes within fixed-length windows which
@@ -1894,7 +1894,7 @@ num_memory_accesses (struct value *v)
    of the constant.  */
 static int
 check_condition (CORE_ADDR watch_addr, struct expression *cond,
-		 CORE_ADDR *data_value, int *len)
+		 CORE_ADDR *data_value, LONGEST *len)
 {
   int pc = 1, num_accesses_left, num_accesses_right;
   struct value *left_val, *right_val, *left_chain, *right_chain;
@@ -1962,7 +1962,7 @@ check_condition (CORE_ADDR watch_addr, struct expression *cond,
    true.  */
 static int
 ppc_linux_can_accel_watchpoint_condition (struct target_ops *self,
-					  CORE_ADDR addr, int len, int rw,
+					  CORE_ADDR addr, LONGEST len, int rw,
 					  struct expression *cond)
 {
   CORE_ADDR data_value;
@@ -1979,7 +1979,7 @@ ppc_linux_can_accel_watchpoint_condition (struct target_ops *self,
 
 static void
 create_watchpoint_request (struct ppc_hw_breakpoint *p, CORE_ADDR addr,
-			   int len, enum target_hw_bp_type type,
+			   LONGEST len, enum target_hw_bp_type type,
 			   struct expression *cond, int insert)
 {
   if (len == 1
@@ -2245,7 +2245,7 @@ ppc_linux_stopped_by_watchpoint (struct target_ops *ops)
 static int
 ppc_linux_watchpoint_addr_within_range (struct target_ops *target,
 					CORE_ADDR addr,
-					CORE_ADDR start, int length)
+					CORE_ADDR start, LONGEST length)
 {
   int mask;
 

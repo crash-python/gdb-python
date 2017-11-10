@@ -1177,7 +1177,7 @@ arm_linux_stopped_by_watchpoint (struct target_ops *ops)
 static int
 arm_linux_watchpoint_addr_within_range (struct target_ops *target,
 					CORE_ADDR addr,
-					CORE_ADDR start, int length)
+					CORE_ADDR start, LONGEST length)
 {
   return start <= addr && start + length - 1 >= addr;
 }

@@ -549,7 +549,7 @@ struct target_ops
     int (*to_stopped_data_address) (struct target_ops *, CORE_ADDR *)
       TARGET_DEFAULT_RETURN (0);
     int (*to_watchpoint_addr_within_range) (struct target_ops *,
-					    CORE_ADDR, CORE_ADDR, int)
+					    CORE_ADDR, CORE_ADDR, LONGEST)
       TARGET_DEFAULT_FUNC (default_watchpoint_addr_within_range);
 
     /* Documentation of this routine is provided with the corresponding
@@ -559,7 +559,7 @@ struct target_ops
       TARGET_DEFAULT_FUNC (default_region_ok_for_hw_watchpoint);
 
     int (*to_can_accel_watchpoint_condition) (struct target_ops *,
-					      CORE_ADDR, int, int,
+					      CORE_ADDR, LONGEST, int,
 					      struct expression *)
       TARGET_DEFAULT_RETURN (0);
     int (*to_masked_watch_num_registers) (struct target_ops *,
