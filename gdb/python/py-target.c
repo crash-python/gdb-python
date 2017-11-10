@@ -29,8 +29,8 @@
 static PyObject *py_target_xfer_eof_error;
 static PyObject *py_target_xfer_unavailable_error;
 
-extern PyTypeObject target_object_type
-    CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("target_object");
+extern PyTypeObject pytarget_object_type
+    CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("pytarget_object");
 
 /* Require that Target operations are valid */
 #define THPY_REQUIRE_VALID_RETURN(Target, ret)			\
@@ -96,16 +96,16 @@ extern PyTypeObject target_object_type
  * This gives us the opportunity to find our Python Object when we are called
  * from C code
  */
-static target_object * target_ops_to_target_obj(struct target_ops *ops)
+static pytarget_object * target_ops_to_target_obj(struct target_ops *ops)
 {
-    target_object *target_obj;
+    pytarget_object *target_obj;
 
-    if (ops->to_data == &target_object_type) {
-	target_obj = container_of(ops, target_object, python_ops);
+    if (ops->to_data == &pytarget_object_type) {
+	target_obj = container_of(ops, pytarget_object, python_ops);
 	return target_obj;
     }
 
-    target_obj = PyObject_New (target_object, &target_object_type);
+    target_obj = PyObject_New (pytarget_object, &pytarget_object_type);
     if (target_obj)
       target_obj->ops = ops;
 
@@ -135,7 +135,7 @@ static const
 char *py_target_to_thread_name (struct target_ops *ops,
 				struct thread_info *info)
 {
-    target_object *target_obj = target_ops_to_target_obj (ops);
+    pytarget_object *target_obj = target_ops_to_target_obj (ops);
     PyObject *self = (PyObject *) target_obj;
     PyObject *arglist  = NULL;
     PyObject *result   = NULL;
@@ -196,7 +196,7 @@ py_target_to_xfer_partial (struct target_ops *ops,
 			   gdb_byte *gdb_readbuf, const gdb_byte *gdb_writebuf,
 			   ULONGEST offset, ULONGEST len, ULONGEST *xfered_len)
 {
-    target_object *target_obj = target_ops_to_target_obj (ops);
+    pytarget_object *target_obj = target_ops_to_target_obj (ops);
     PyObject *self = (PyObject *) target_obj;
     PyObject *callback  = NULL;
     PyObject *readbuf  = NULL;
@@ -306,7 +306,7 @@ static char *
 py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info)
 {
     /* Note how we can obtain our Parent Python Object from the ops too */
-    target_object *target_obj = target_ops_to_target_obj(ops);
+    pytarget_object *target_obj = target_ops_to_target_obj(ops);
     PyObject * self = (PyObject *)target_obj;
 
     struct cleanup *cleanup;
@@ -322,7 +322,7 @@ py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info
 static void
 py_target_to_update_thread_list (struct target_ops *ops)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
   PyObject *callback = NULL;
   PyObject *arglist  = NULL;
@@ -363,7 +363,7 @@ error:
 static int
 py_target_to_thread_alive (struct target_ops *ops, ptid_t ptid)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject *self = (PyObject *) target_obj;
   PyObject *ptid_obj = NULL;
   PyObject *arglist  = NULL;
@@ -421,7 +421,7 @@ error:
 static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
 {
   /* Note how we can obtain our Parent Python Object from the ops too */
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject *self = (PyObject *) target_obj;
   PyObject *ptid_obj = NULL;
   PyObject *arglist  = NULL;
@@ -477,7 +477,7 @@ error:
 static void py_target_to_fetch_registers (struct target_ops *ops,
 					  struct regcache *regcache, int reg)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
@@ -529,7 +529,7 @@ error:
 static void py_target_to_prepare_to_store (struct target_ops *ops,
 					   struct regcache *regcache)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
@@ -574,7 +574,7 @@ error:
 static void py_target_to_store_registers (struct target_ops *ops,
 					  struct regcache *regcache, int reg)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
@@ -625,7 +625,7 @@ error:
 static int
 py_target_to_has_execution (struct target_ops *ops, ptid_t ptid)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
+  pytarget_object *target_obj = target_ops_to_target_obj (ops);
   PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
@@ -712,7 +712,7 @@ static void py_target_register_ops(struct target_ops * ops)
 
     ops->to_magic = OPS_MAGIC;
 
-    ops->to_data = &target_object_type;
+    ops->to_data = &pytarget_object_type;
 
     /* Install any remaining operations as delegators */
     complete_target_initialization (ops);
@@ -732,7 +732,7 @@ target_dealloc (PyObject *self)
 {
   ENTRY();
 
-  // Py_DECREF (((target_object *) self)->inf_obj);
+  // Py_DECREF (((pytarget_object *) self)->inf_obj);
   // Decremement any references taken....
   Py_TYPE (self)->tp_free (self);
 
@@ -748,8 +748,8 @@ enum target_names {
 static PyObject *
 tgt_py_get_name (PyObject *self, void * arg)
 {
-  enum target_names target_string = (enum target_names) arg;
-  target_object *target_obj = (target_object *) self;
+  enum target_names target_string = (enum target_names) (unsigned long)arg;
+  pytarget_object *target_obj = (pytarget_object *) self;
   struct target_ops *ops = target_obj->ops;
 
   PyObject *name;
@@ -789,8 +789,8 @@ tgt_py_get_name (PyObject *self, void * arg)
 static int
 tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
 {
-  enum target_names target_string = (enum target_names) arg;
-  target_object *target_obj = (target_object *) self;
+  enum target_names target_string = (enum target_names)(unsigned long) arg;
+  pytarget_object *target_obj = (pytarget_object *) self;
   struct target_ops *ops = target_obj->ops;
   char *name = NULL;
 
@@ -845,7 +845,7 @@ static PyObject *target_getconst(PyObject *_self, void *_value)
 #define CONST_GET(x) {#x, target_getconst, NULL, #x, (void*)x}
 
 
-static gdb_PyGetSetDef target_object_getset[] =
+static gdb_PyGetSetDef pytarget_object_getset[] =
 {
   { "name", tgt_py_get_name, NULL,
     "The name of the target", (void*)TGT_NAME },
@@ -909,7 +909,7 @@ CONST_GET(TARGET_OBJECT_EXEC_FILE),
 static PyObject *
 tgtpy_default_to_thread_name (PyObject *self, PyObject *args)
 {
-  target_object *target_obj = (target_object *) self;
+  pytarget_object *target_obj = (pytarget_object *) self;
   PyObject * ThreadName;
 
   ENTRY();
@@ -921,7 +921,7 @@ tgtpy_default_to_thread_name (PyObject *self, PyObject *args)
   return ThreadName;
 }
 
-static PyMethodDef target_object_methods[] =
+static PyMethodDef pytarget_object_methods[] =
 {
   { "to_thread_name_int", tgtpy_default_to_thread_name, METH_VARARGS | METH_KEYWORDS,
     "to_thread_name (thread_info) -> String.\n\
@@ -936,7 +936,7 @@ Return string name representation of the given thread." },
 static int
 target_init (PyObject *self, PyObject *args, PyObject *kw)
 {
-    target_object *target_obj = (target_object *) self;
+    pytarget_object *target_obj = (pytarget_object *) self;
 
     ENTRY();
 
@@ -971,9 +971,9 @@ gdbpy_initialize_target (void)
   ENTRY();
 
   /* Allow us to create instantiations of this class ... */
-  target_object_type.tp_new = PyType_GenericNew;
+  pytarget_object_type.tp_new = PyType_GenericNew;
 
-  if (PyType_Ready (&target_object_type) < 0)
+  if (PyType_Ready (&pytarget_object_type) < 0)
     return -1;
 
   py_target_xfer_eof_error = PyErr_NewException ("gdb.TargetXferEOF",
@@ -998,7 +998,7 @@ gdbpy_initialize_target (void)
   EXIT ();
 
   return gdb_pymodule_addobject (gdb_module, "Target",
-				 (PyObject *) &target_object_type);
+				 (PyObject *) &pytarget_object_type);
 fail:
   gdbpy_print_stack();
   EXIT ();
@@ -1010,11 +1010,11 @@ fail:
 
 
 
-PyTypeObject target_object_type =
+PyTypeObject pytarget_object_type =
 {
   PyVarObject_HEAD_INIT (NULL, 0)
   "gdb.Target",			  /*tp_name*/
-  sizeof (target_object),	  /*tp_basicsize*/
+  sizeof (pytarget_object),	  /*tp_basicsize*/
   0,				  /*tp_itemsize*/
   target_dealloc,		  /*tp_dealloc*/
   0,				  /*tp_print*/
@@ -1039,9 +1039,9 @@ PyTypeObject target_object_type =
   0,				  /* tp_weaklistoffset */
   0,				  /* tp_iter */
   0,				  /* tp_iternext */
-  target_object_methods,	  /* tp_methods */
+  pytarget_object_methods,	  /* tp_methods */
   0,				  /* tp_members */
-  target_object_getset,		  /* tp_getset */
+  pytarget_object_getset,		  /* tp_getset */
   0,				  /* tp_base */
   0,				  /* tp_dict */
   0,				  /* tp_descr_get */
@@ -1055,9 +1055,9 @@ PyObject *
 gdbpy_current_target (PyObject *self, PyObject *args)
 {
   struct target_ops *ops = current_target.beneath;
-  target_object *obj = target_ops_to_target_obj(ops);
+  pytarget_object *obj = target_ops_to_target_obj(ops);
 
-  if (obj->ops->to_data == &target_object_type)
+  if (obj->ops->to_data == &pytarget_object_type)
 	  Py_INCREF(obj);
 
   return (PyObject *)obj;
