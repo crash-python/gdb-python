@@ -861,7 +861,8 @@ allocate_stub_method (struct type *type)
 struct type *
 create_range_type (struct type *result_type, struct type *index_type,
 		   const struct dynamic_prop *low_bound,
-		   const struct dynamic_prop *high_bound)
+		   const struct dynamic_prop *high_bound,
+		   const struct dynamic_prop *stride)
 {
   if (result_type == NULL)
     result_type = alloc_type_copy (index_type);
@@ -876,6 +877,7 @@ create_range_type (struct type *result_type, struct type *index_type,
     TYPE_ZALLOC (result_type, sizeof (struct range_bounds));
   TYPE_RANGE_DATA (result_type)->low = *low_bound;
   TYPE_RANGE_DATA (result_type)->high = *high_bound;
+  TYPE_RANGE_DATA (result_type)->stride = *stride;
 
   if (low_bound->kind == PROP_CONST && low_bound->data.const_val >= 0)
     TYPE_UNSIGNED (result_type) = 1;
@@ -904,7 +906,7 @@ struct type *
 create_static_range_type (struct type *result_type, struct type *index_type,
 			  LONGEST low_bound, LONGEST high_bound)
 {
-  struct dynamic_prop low, high;
+  struct dynamic_prop low, high, stride;
 
   low.kind = PROP_CONST;
   low.data.const_val = low_bound;
@@ -912,7 +914,11 @@ create_static_range_type (struct type *result_type, struct type *index_type,
   high.kind = PROP_CONST;
   high.data.const_val = high_bound;
 
-  result_type = create_range_type (result_type, index_type, &low, &high);
+  stride.kind = PROP_CONST;
+  stride.data.const_val = 0;
+
+  result_type = create_range_type (result_type, index_type,
+                                   &low, &high, &stride);
 
   return result_type;
 }
@@ -1109,16 +1115,20 @@ create_array_type_with_stride (struct type *result_type,
       && (!type_not_associated (result_type)
 	  && !type_not_allocated (result_type)))
     {
-      LONGEST low_bound, high_bound;
+      LONGEST low_bound, high_bound, byte_stride;
 
       if (get_discrete_bounds (range_type, &low_bound, &high_bound) < 0)
 	low_bound = high_bound = 0;
       element_type = check_typedef (element_type);
+      byte_stride = abs (TYPE_BYTE_STRIDE (range_type));
+
       /* Be careful when setting the array length.  Ada arrays can be
 	 empty arrays with the high_bound being smaller than the low_bound.
 	 In such cases, the array length should be zero.  */
       if (high_bound < low_bound)
 	TYPE_LENGTH (result_type) = 0;
+      else if (byte_stride > 0)
+	TYPE_LENGTH (result_type) = byte_stride * (high_bound - low_bound + 1);
       else if (bit_stride > 0)
 	TYPE_LENGTH (result_type) =
 	  (bit_stride * (high_bound - low_bound + 1) + 7) / 8;
@@ -1911,12 +1921,12 @@ resolve_dynamic_range (struct type *dyn_range_type,
   CORE_ADDR value;
   struct type *static_range_type, *static_target_type;
   const struct dynamic_prop *prop;
-  struct dynamic_prop low_bound, high_bound;
+  struct dynamic_prop low_bound, high_bound, stride;
 
   gdb_assert (TYPE_CODE (dyn_range_type) == TYPE_CODE_RANGE);
 
   prop = &TYPE_RANGE_DATA (dyn_range_type)->low;
-  if (dwarf2_evaluate_property (prop, NULL, addr_stack, &value))
+  if (dwarf2_evaluate_property_signed (prop, NULL, addr_stack, &value, 1))
     {
       low_bound.kind = PROP_CONST;
       low_bound.data.const_val = value;
@@ -1928,7 +1938,7 @@ resolve_dynamic_range (struct type *dyn_range_type,
     }
 
   prop = &TYPE_RANGE_DATA (dyn_range_type)->high;
-  if (dwarf2_evaluate_property (prop, NULL, addr_stack, &value))
+  if (dwarf2_evaluate_property_signed (prop, NULL, addr_stack, &value, 1))
     {
       high_bound.kind = PROP_CONST;
       high_bound.data.const_val = value;
@@ -1943,12 +1953,20 @@ resolve_dynamic_range (struct type *dyn_range_type,
       high_bound.data.const_val = 0;
     }
 
+  prop = &TYPE_RANGE_DATA (dyn_range_type)->stride;
+  if (dwarf2_evaluate_property_signed (prop, NULL, addr_stack, &value, 1))
+    {
+      stride.kind = PROP_CONST;
+      stride.data.const_val = value;
+    }
+
   static_target_type
     = resolve_dynamic_type_internal (TYPE_TARGET_TYPE (dyn_range_type),
 				     addr_stack, 0);
   static_range_type = create_range_type (copy_type (dyn_range_type),
 					 static_target_type,
-					 &low_bound, &high_bound);
+					 &low_bound, &high_bound, &stride);
+
   TYPE_RANGE_DATA (static_range_type)->flag_bound_evaluated = 1;
   return static_range_type;
 }

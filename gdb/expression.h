@@ -154,17 +154,17 @@ extern void dump_raw_expression (struct expression *,
 				 struct ui_file *, const char *);
 extern void dump_prefix_expression (struct expression *, struct ui_file *);
 
-/* In an OP_RANGE expression, either bound could be empty, indicating
-   that its value is by default that of the corresponding bound of the
-   array or string.  So we have four sorts of subrange.  This
-   enumeration type is to identify this.  */
-   
+/* In an OP_RANGE expression, either bound can be provided by the user, or not.
+   In addition to this, the user can also specify a stride value to indicated
+   only certain elements of the array.  This enumeration type is to identify
+   this.  */
+
 enum range_type
   {
-    BOTH_BOUND_DEFAULT,		/* "(:)"  */
-    LOW_BOUND_DEFAULT,		/* "(:high)"  */
-    HIGH_BOUND_DEFAULT,		/* "(low:)"  */
-    NONE_BOUND_DEFAULT		/* "(low:high)"  */
+    SUBARRAY_NONE_BOUND = 0x0,		/* "( : )"  */
+    SUBARRAY_LOW_BOUND = 0x1,		/* "(low:)"  */
+    SUBARRAY_HIGH_BOUND = 0x2,		/* "(:high)"  */
+    SUBARRAY_STRIDE = 0x4		/* "(::stride)"  */
   };
 
 #endif /* !defined (EXPRESSION_H) */
