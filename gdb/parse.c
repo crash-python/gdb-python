@@ -484,6 +484,8 @@ write_exp_msymbol (struct parser_state *ps,
   struct obj_section *section = MSYMBOL_OBJ_SECTION (objfile, msymbol);
   enum minimal_symbol_type type = MSYMBOL_TYPE (msymbol);
   CORE_ADDR pc;
+  const int is_tls = (section != NULL
+		      && section->the_bfd_section->flags & SEC_THREAD_LOCAL);
 
   /* The minimal symbol might point to a function descriptor;
      resolve it to the actual code address instead.  */
@@ -520,7 +522,7 @@ write_exp_msymbol (struct parser_state *ps,
   write_exp_elt_longcst (ps, (LONGEST) addr);
   write_exp_elt_opcode (ps, OP_LONG);
 
-  if (section && section->the_bfd_section->flags & SEC_THREAD_LOCAL)
+  if (is_tls)
     {
       write_exp_elt_opcode (ps, UNOP_MEMVAL_TLS);
       write_exp_elt_objfile (ps, objfile);
