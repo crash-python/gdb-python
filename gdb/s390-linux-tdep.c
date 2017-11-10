@@ -3081,7 +3081,7 @@ s390_function_arg_vector (struct type *type)
 /* Determine whether N is a power of two.  */
 
 static int
-is_power_of_two (unsigned int n)
+is_power_of_two (ULONGEST n)
 {
   return n && ((n & (n - 1)) == 0);
 }
@@ -3138,7 +3138,7 @@ s390_handle_arg (struct s390_arg_state *as, struct value *arg,
 		 enum bfd_endian byte_order, int is_unnamed)
 {
   struct type *type = check_typedef (value_type (arg));
-  unsigned int length = TYPE_LENGTH (type);
+  ULONGEST length = TYPE_LENGTH (type);
   int write_mode = as->regcache != NULL;
 
   if (s390_function_arg_float (type))

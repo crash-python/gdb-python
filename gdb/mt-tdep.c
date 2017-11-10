@@ -788,9 +788,9 @@ mt_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   gdb_byte buf[MT_MAX_STRUCT_SIZE];
   int argreg = MT_1ST_ARGREG;
   int split_param_len = 0;
-  int stack_dest = sp;
+  LONGEST stack_dest = sp;
   int slacklen;
-  int typelen;
+  LONGEST typelen;
   int i, j;
 
   /* First handle however many args we can fit into MT_1ST_ARGREG thru

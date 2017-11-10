@@ -567,7 +567,7 @@ sparc32_store_arguments (struct regcache *regcache, int nargs,
   for (i = 0; i < nargs; i++)
     {
       struct type *type = value_type (args[i]);
-      int len = TYPE_LENGTH (type);
+      LONGEST len = TYPE_LENGTH (type);
 
       if (sparc_structure_or_union_p (type)
 	  || (sparc_floating_p (type) && len == 16)

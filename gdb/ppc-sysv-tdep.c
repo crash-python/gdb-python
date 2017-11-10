@@ -67,7 +67,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   int opencl_abi = ppc_sysv_use_opencl_abi (value_type (function));
   ULONGEST saved_sp;
-  int argspace = 0;		/* 0 is an initial wrong guess.  */
+  LONGEST argspace = 0;		/* 0 is an initial wrong guess.  */
   int write_pass;
 
   gdb_assert (tdep->wordsize == 4);
@@ -98,9 +98,9 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
       /* Next available vector register for vector arguments.  */
       int vreg = 2;
       /* Arguments start above the "LR save word" and "Back chain".  */
-      int argoffset = 2 * tdep->wordsize;
+      LONGEST argoffset = 2 * tdep->wordsize;
       /* Structures start after the arguments.  */
-      int structoffset = argoffset + argspace;
+      LONGEST structoffset = argoffset + argspace;
 
       /* If the function is returning a `struct', then the first word
          (which will be passed in r3) is used for struct return
@@ -119,7 +119,7 @@ ppc_sysv_abi_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	{
 	  struct value *arg = args[argno];
 	  struct type *type = check_typedef (value_type (arg));
-	  int len = TYPE_LENGTH (type);
+	  ssize_t len = TYPE_LENGTH (type);
 	  const bfd_byte *val = value_contents (arg);
 
 	  if (TYPE_CODE (type) == TYPE_CODE_FLT && len <= 8
@@ -1284,11 +1284,11 @@ struct ppc64_sysv_argpos
 
 static void
 ppc64_sysv_abi_push_val (struct gdbarch *gdbarch,
-			 const bfd_byte *val, int len, int align,
+			 const bfd_byte *val, ssize_t len, int align,
 			 struct ppc64_sysv_argpos *argpos)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  int offset = 0;
+  ssize_t offset = 0;
 
   /* Enforce alignment of stack location, if requested.  */
   if (align > tdep->wordsize)

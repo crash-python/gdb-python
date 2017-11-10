@@ -814,7 +814,7 @@ sh_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 static int
 sh_use_struct_convention (int renesas_abi, struct type *type)
 {
-  int len = TYPE_LENGTH (type);
+  LONGEST len = TYPE_LENGTH (type);
   int nelem = TYPE_NFIELDS (type);
 
   /* The Renesas ABI returns aggregate types always on stack.  */
@@ -916,7 +916,7 @@ sh_frame_align (struct gdbarch *ignore, CORE_ADDR sp)
 
 /* Helper function to justify value in register according to endianess.  */
 static const gdb_byte *
-sh_justify_value_in_reg (struct gdbarch *gdbarch, struct value *val, int len)
+sh_justify_value_in_reg (struct gdbarch *gdbarch, struct value *val, LONGEST len)
 {
   static gdb_byte valbuf[4];
 
@@ -1076,7 +1076,8 @@ sh_push_dummy_call_fpu (struct gdbarch *gdbarch,
   struct type *type;
   CORE_ADDR regval;
   const gdb_byte *val;
-  int len, reg_size = 0;
+  LONGEST len;
+  int reg_size = 0;
   int pass_on_stack = 0;
   int treat_as_flt;
   int last_reg_arg = INT_MAX;
@@ -1217,7 +1218,8 @@ sh_push_dummy_call_nofpu (struct gdbarch *gdbarch,
   struct type *type;
   CORE_ADDR regval;
   const gdb_byte *val;
-  int len, reg_size = 0;
+  LONGEST len;
+  int reg_size = 0;
   int pass_on_stack = 0;
   int last_reg_arg = INT_MAX;
 
