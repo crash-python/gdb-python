@@ -194,6 +194,11 @@ enum tribool have_ptrace_getregset = TRIBOOL_UNKNOWN;
 static struct target_ops *linux_ops;
 static struct target_ops linux_ops_saved;
 
+#ifdef NEED_DETACH_SIGSTOP
+/* PID of the inferior stopped by SIGSTOP before attaching (or zero).  */
+static pid_t pid_was_stopped;
+
+#endif
 /* The method to call, if any, when a new thread is attached.  */
 static void (*linux_nat_new_thread) (struct lwp_info *);
 
@@ -1055,6 +1060,9 @@ linux_nat_post_attach_wait (ptid_t ptid, int first, int *signalled)
       if (debug_linux_nat)
 	fprintf_unfiltered (gdb_stdlog,
 			    "LNPAW: Attaching to a stopped process\n");
+#ifdef NEED_DETACH_SIGSTOP
+      pid_was_stopped = ptid_get_pid (ptid);
+#endif
 
       /* The process is definitely stopped.  It is in a job control
 	 stop, unless the kernel predates the TASK_STOPPED /
@@ -1412,6 +1420,25 @@ get_detach_signal (struct lwp_info *lp)
       return gdb_signal_to_host (signo);
     }
 
+#ifdef NEED_DETACH_SIGSTOP
+  /* Workaround RHEL-5 kernel which has unreliable PTRACE_DETACH, SIGSTOP (that
+     many TIDs are left unstopped).  See RH Bug 496732.  */
+  if (ptid_get_pid (lp->ptid) == pid_was_stopped)
+    {
+      int err;
+
+      errno = 0;
+      err = kill_lwp (ptid_get_lwp (lp->ptid), SIGSTOP);
+      if (debug_linux_nat)
+	{
+	  fprintf_unfiltered (gdb_stdlog,
+			      "SC:  lwp kill %d %s\n",
+			      err,
+			      errno ? safe_strerror (errno) : "ERRNO-OK");
+	}
+    }
+
+#endif
   return 0;
 }
 
@@ -1570,6 +1597,10 @@ linux_nat_detach (struct target_ops *ops, const char *args, int from_tty)
       detach_one_lwp (main_lwp, &signo);
 
       inf_ptrace_detach_success (ops);
+
+#ifdef NEED_DETACH_SIGSTOP
+      pid_was_stopped = 0;
+#endif
     }
 }
 
@@ -1830,6 +1861,16 @@ linux_nat_resume (struct target_ops *ops,
       return;
     }
 
+#ifdef NEED_DETACH_SIGSTOP
+  /* At this point, we are going to resume the inferior and if we
+     have attached to a stopped process, we no longer should leave
+     it as stopped if the user detaches.  PTID variable has PID set to LWP
+     while we need to check the real PID here.  */
+
+  if (!step && lp && pid_was_stopped == ptid_get_pid (lp->ptid))
+    pid_was_stopped = 0;
+
+#endif
   if (resume_many)
     iterate_over_lwps (ptid, linux_nat_resume_callback, lp);
 
@@ -3826,6 +3867,10 @@ linux_nat_mourn_inferior (struct target_ops *ops)
 
   /* Let the arch-specific native code know this process is gone.  */
   linux_nat_forget_process (pid);
+#ifdef NEED_DETACH_SIGSTOP
+
+  pid_was_stopped = 0;
+#endif
 }
 
 /* Convert a native/host siginfo object, into/from the siginfo in the
