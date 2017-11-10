@@ -734,7 +734,7 @@ coff_symfile_read (struct objfile *objfile, symfile_add_flags symfile_flags)
     {
       char *debugfile;
 
-      debugfile = find_separate_debug_file_by_buildid (objfile);
+      debugfile = find_separate_debug_file_by_buildid (objfile, NULL);
 
       if (debugfile == NULL)
 	debugfile = find_separate_debug_file_by_debuglink (objfile);
