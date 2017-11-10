@@ -444,6 +444,7 @@ enum field_loc_kind
   {
     FIELD_LOC_KIND_BITPOS,	/**< bitpos */
     FIELD_LOC_KIND_ENUMVAL,	/**< enumval */
+    /* This address is unrelocated by the objfile's ANOFFSET.  */
     FIELD_LOC_KIND_PHYSADDR,	/**< physaddr */
     FIELD_LOC_KIND_PHYSNAME,	/**< physname */
     FIELD_LOC_KIND_DWARF_BLOCK	/**< dwarf_block */
@@ -495,6 +496,7 @@ union field_location
      field.  Otherwise, physname is the mangled label of the
      static field.  */
 
+  /* This address is unrelocated by the objfile's ANOFFSET.  */
   CORE_ADDR physaddr;
   const char *physname;
 
@@ -1337,6 +1339,7 @@ extern void set_type_vptr_basetype (struct type *, struct type *);
 #define FIELD_ENUMVAL_LVAL(thisfld) ((thisfld).loc.enumval)
 #define FIELD_ENUMVAL(thisfld) (FIELD_ENUMVAL_LVAL (thisfld) + 0)
 #define FIELD_STATIC_PHYSNAME(thisfld) ((thisfld).loc.physname)
+/* This address is unrelocated by the objfile's ANOFFSET.  */
 #define FIELD_STATIC_PHYSADDR(thisfld) ((thisfld).loc.physaddr)
 #define FIELD_DWARF_BLOCK(thisfld) ((thisfld).loc.dwarf_block)
 #define SET_FIELD_BITPOS(thisfld, bitpos)			\
@@ -1348,6 +1351,7 @@ extern void set_type_vptr_basetype (struct type *, struct type *);
 #define SET_FIELD_PHYSNAME(thisfld, name)			\
   (FIELD_LOC_KIND (thisfld) = FIELD_LOC_KIND_PHYSNAME,		\
    FIELD_STATIC_PHYSNAME (thisfld) = (name))
+/* This address is unrelocated by the objfile's ANOFFSET.  */
 #define SET_FIELD_PHYSADDR(thisfld, addr)			\
   (FIELD_LOC_KIND (thisfld) = FIELD_LOC_KIND_PHYSADDR,		\
    FIELD_STATIC_PHYSADDR (thisfld) = (addr))
@@ -1364,6 +1368,7 @@ extern void set_type_vptr_basetype (struct type *, struct type *);
 #define TYPE_FIELD_BITPOS(thistype, n) FIELD_BITPOS (TYPE_FIELD (thistype, n))
 #define TYPE_FIELD_ENUMVAL(thistype, n) FIELD_ENUMVAL (TYPE_FIELD (thistype, n))
 #define TYPE_FIELD_STATIC_PHYSNAME(thistype, n) FIELD_STATIC_PHYSNAME (TYPE_FIELD (thistype, n))
+/* This address is unrelocated by the objfile's ANOFFSET.  */
 #define TYPE_FIELD_STATIC_PHYSADDR(thistype, n) FIELD_STATIC_PHYSADDR (TYPE_FIELD (thistype, n))
 #define TYPE_FIELD_DWARF_BLOCK(thistype, n) FIELD_DWARF_BLOCK (TYPE_FIELD (thistype, n))
 #define TYPE_FIELD_ARTIFICIAL(thistype, n) FIELD_ARTIFICIAL(TYPE_FIELD(thistype,n))
