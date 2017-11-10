@@ -13047,23 +13047,22 @@ dwarf2_attach_fields_to_type (struct field_info *fip, struct type *type,
      and create blank accessibility bitfields if necessary.  */
   TYPE_NFIELDS (type) = nfields;
   TYPE_FIELDS (type) = (struct field *)
-    TYPE_ALLOC (type, sizeof (struct field) * nfields);
-  memset (TYPE_FIELDS (type), 0, sizeof (struct field) * nfields);
+    TYPE_ZALLOC (type, sizeof (struct field) * nfields);
 
   if (fip->non_public_fields && cu->language != language_ada)
     {
       ALLOCATE_CPLUS_STRUCT_TYPE (type);
 
       TYPE_FIELD_PRIVATE_BITS (type) =
-	(B_TYPE *) TYPE_ALLOC (type, B_BYTES (nfields));
+	(B_TYPE *) TYPE_ZALLOC (type, B_BYTES (nfields));
       B_CLRALL (TYPE_FIELD_PRIVATE_BITS (type), nfields);
 
       TYPE_FIELD_PROTECTED_BITS (type) =
-	(B_TYPE *) TYPE_ALLOC (type, B_BYTES (nfields));
+	(B_TYPE *) TYPE_ZALLOC (type, B_BYTES (nfields));
       B_CLRALL (TYPE_FIELD_PROTECTED_BITS (type), nfields);
 
       TYPE_FIELD_IGNORE_BITS (type) =
-	(B_TYPE *) TYPE_ALLOC (type, B_BYTES (nfields));
+	(B_TYPE *) TYPE_ZALLOC (type, B_BYTES (nfields));
       B_CLRALL (TYPE_FIELD_IGNORE_BITS (type), nfields);
     }
 
@@ -13075,7 +13074,7 @@ dwarf2_attach_fields_to_type (struct field_info *fip, struct type *type,
       unsigned char *pointer;
 
       ALLOCATE_CPLUS_STRUCT_TYPE (type);
-      pointer = (unsigned char *) TYPE_ALLOC (type, num_bytes);
+      pointer = (unsigned char *) TYPE_ZALLOC (type, num_bytes);
       TYPE_FIELD_VIRTUAL_BITS (type) = pointer;
       B_CLRALL (TYPE_FIELD_VIRTUAL_BITS (type), fip->nbaseclasses);
       TYPE_N_BASECLASSES (type) = fip->nbaseclasses;
@@ -13208,6 +13207,8 @@ dwarf2_add_member_fn (struct field_info *fip, struct die_info *die,
 	    xrealloc (fip->fnfieldlists,
 		      (fip->nfnfields + DW_FIELD_ALLOC_CHUNK)
 		      * sizeof (struct fnfieldlist));
+	    memset(&fip->fnfieldlists[fip->nfnfields], 0,
+		   DW_FIELD_ALLOC_CHUNK * sizeof (struct fnfieldlist));
 	  if (fip->nfnfields == 0)
 	    make_cleanup (free_current_contents, &fip->fnfieldlists);
 	}
@@ -13390,7 +13391,7 @@ dwarf2_attach_fn_fields_to_type (struct field_info *fip, struct type *type,
 
   ALLOCATE_CPLUS_STRUCT_TYPE (type);
   TYPE_FN_FIELDLISTS (type) = (struct fn_fieldlist *)
-    TYPE_ALLOC (type, sizeof (struct fn_fieldlist) * fip->nfnfields);
+    TYPE_ZALLOC (type, sizeof (struct fn_fieldlist) * fip->nfnfields);
 
   for (i = 0, flp = fip->fnfieldlists; i < fip->nfnfields; i++, flp++)
     {
@@ -13401,7 +13402,7 @@ dwarf2_attach_fn_fields_to_type (struct field_info *fip, struct type *type,
       TYPE_FN_FIELDLIST_NAME (type, i) = flp->name;
       TYPE_FN_FIELDLIST_LENGTH (type, i) = flp->length;
       fn_flp->fn_fields = (struct fn_field *)
-	TYPE_ALLOC (type, sizeof (struct fn_field) * flp->length);
+	TYPE_ZALLOC (type, sizeof (struct fn_field) * flp->length);
       for (k = flp->length; (k--, nfp); nfp = nfp->next)
 	fn_flp->fn_fields[k] = nfp->fnfield;
     }
@@ -13778,7 +13779,7 @@ process_structure_scope (struct die_info *die, struct dwarf2_cu *cu)
 	  ALLOCATE_CPLUS_STRUCT_TYPE (type);
 	  TYPE_TYPEDEF_FIELD_ARRAY (type)
 	    = ((struct typedef_field *)
-	       TYPE_ALLOC (type, sizeof (TYPE_TYPEDEF_FIELD (type, 0)) * i));
+	       TYPE_ZALLOC (type, sizeof (TYPE_TYPEDEF_FIELD (type, 0)) * i));
 	  TYPE_TYPEDEF_FIELD_COUNT (type) = i;
 
 	  /* Reverse the list order to keep the debug info elements order.  */
@@ -14020,6 +14021,8 @@ process_enumeration_scope (struct die_info *die, struct dwarf2_cu *cu)
 			xrealloc (fields,
 				  (num_fields + DW_FIELD_ALLOC_CHUNK)
 				  * sizeof (struct field));
+		      memset (&fields[num_fields], 0,
+			      DW_FIELD_ALLOC_CHUNK * sizeof(field));
 		    }
 
 		  FIELD_NAME (fields[num_fields]) = SYMBOL_LINKAGE_NAME (sym);
@@ -14038,7 +14041,7 @@ process_enumeration_scope (struct die_info *die, struct dwarf2_cu *cu)
 	{
 	  TYPE_NFIELDS (this_type) = num_fields;
 	  TYPE_FIELDS (this_type) = (struct field *)
-	    TYPE_ALLOC (this_type, sizeof (struct field) * num_fields);
+	    TYPE_ZALLOC (this_type, sizeof (struct field) * num_fields);
 	  memcpy (TYPE_FIELDS (this_type), fields,
 		  sizeof (struct field) * num_fields);
 	  xfree (fields);
@@ -14128,6 +14131,9 @@ read_array_type (struct die_info *die, struct dwarf2_cu *cu)
                   range_types = (struct type **)
                     xrealloc (range_types, (ndim + DW_FIELD_ALLOC_CHUNK)
                               * sizeof (struct type *));
+		    memset (&range_types[ndim], 0,
+			    DW_FIELD_ALLOC_CHUNK * sizeof(struct type *));
+
                   if (ndim == 0)
                     make_cleanup (free_current_contents, &range_types);
 	        }

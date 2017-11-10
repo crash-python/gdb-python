@@ -126,6 +126,8 @@ unsigned int overload_debug = 0;
 
 static int strict_type_checking = 1;
 
+static unsigned int type_equals_debug = 0;
+
 /* A function to show whether opaque types are resolved.  */
 
 static void
@@ -2616,7 +2618,7 @@ check_stub_method (struct type *type, int method_id, int signature_id)
   /* We need one extra slot, for the THIS pointer.  */
 
   argtypes = (struct field *)
-    TYPE_ALLOC (type, (argcount + 1) * sizeof (struct field));
+    TYPE_ZALLOC (type, (argcount + 1) * sizeof (struct field));
   p = argtypetext;
 
   /* Add THIS pointer for non-static methods.  */
@@ -3458,38 +3460,69 @@ check_types_equal (struct type *type1, struct type *type2,
       || TYPE_VECTOR (type1) != TYPE_VECTOR (type2)
       || TYPE_NOTTEXT (type1) != TYPE_NOTTEXT (type2)
       || TYPE_INSTANCE_FLAGS (type1) != TYPE_INSTANCE_FLAGS (type2)
-      || TYPE_NFIELDS (type1) != TYPE_NFIELDS (type2))
+      || TYPE_NFIELDS (type1) != TYPE_NFIELDS (type2)) {
+
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "type field mismatch");
     return 0;
+  }
 
   if (!compare_maybe_null_strings (TYPE_TAG_NAME (type1),
-				   TYPE_TAG_NAME (type2)))
+				   TYPE_TAG_NAME (type2))) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "type tag name mismatch");
     return 0;
-  if (!compare_maybe_null_strings (TYPE_NAME (type1), TYPE_NAME (type2)))
+  }
+  if (!compare_maybe_null_strings (TYPE_NAME (type1), TYPE_NAME (type2))) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "type name mismatch");
     return 0;
+  }
 
   if (TYPE_CODE (type1) == TYPE_CODE_RANGE)
     {
       if (TYPE_RANGE_DATA (type1)->low.kind !=
-	  TYPE_RANGE_DATA (type2)->low.kind)
+	  TYPE_RANGE_DATA (type2)->low.kind) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data low kind mismatch");
 	return 0;
+      }
       if (TYPE_RANGE_DATA (type1)->low.data.const_val !=
-	  TYPE_RANGE_DATA (type2)->low.data.const_val)
+	  TYPE_RANGE_DATA (type2)->low.data.const_val) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data low constval");
 	return 0;
+      }
       if (TYPE_RANGE_DATA (type1)->high.kind !=
-	  TYPE_RANGE_DATA (type2)->high.kind)
+	  TYPE_RANGE_DATA (type2)->high.kind) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data high kind mismatch");
 	return 0;
+      }
       if (TYPE_RANGE_DATA (type1)->high.data.const_val !=
-	  TYPE_RANGE_DATA (type2)->high.data.const_val)
+	  TYPE_RANGE_DATA (type2)->high.data.const_val) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data high constval");
 	return 0;
+      }
       if (TYPE_RANGE_DATA (type1)->stride.kind !=
-	  TYPE_RANGE_DATA (type2)->stride.kind)
+	  TYPE_RANGE_DATA (type2)->stride.kind) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data stride kind mismatch");
 	return 0;
+      }
       if (TYPE_RANGE_DATA (type1)->stride.data.const_val !=
-	  TYPE_RANGE_DATA (type2)->stride.data.const_val)
+	  TYPE_RANGE_DATA (type2)->stride.data.const_val) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data stride constval");
 	return 0;
+      }
       if (TYPE_RANGE_DATA (type1)->flag_upper_bound_is_count !=
-	  TYPE_RANGE_DATA (type2)->flag_upper_bound_is_count)
+	  TYPE_RANGE_DATA (type2)->flag_upper_bound_is_count) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "range data is_count");
 	return 0;
+      }
 
       /*
        * Checking this means that a type resolved by name and a type
@@ -3513,30 +3546,49 @@ check_types_equal (struct type *type1, struct type *type2,
 
 	  if (FIELD_ARTIFICIAL (*field1) != FIELD_ARTIFICIAL (*field2)
 	      || FIELD_BITSIZE (*field1) != FIELD_BITSIZE (*field2)
-	      || FIELD_LOC_KIND (*field1) != FIELD_LOC_KIND (*field2))
+	      || FIELD_LOC_KIND (*field1) != FIELD_LOC_KIND (*field2)) {
+
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct fields mismatch");
 	    return 0;
+	  }
 	  if (!compare_maybe_null_strings (FIELD_NAME (*field1),
-					   FIELD_NAME (*field2)))
+					   FIELD_NAME (*field2))) {
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct name mismatch");
 	    return 0;
+	  }
 	  switch (FIELD_LOC_KIND (*field1))
 	    {
 	    case FIELD_LOC_KIND_BITPOS:
-	      if (FIELD_BITPOS (*field1) != FIELD_BITPOS (*field2))
+	      if (FIELD_BITPOS (*field1) != FIELD_BITPOS (*field2)) {
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct bitpos mismatch");
 		return 0;
+	      }
 	      break;
 	    case FIELD_LOC_KIND_ENUMVAL:
-	      if (FIELD_ENUMVAL (*field1) != FIELD_ENUMVAL (*field2))
+	      if (FIELD_ENUMVAL (*field1) != FIELD_ENUMVAL (*field2)) {
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct enumval mismatch");
 		return 0;
+	      }
 	      break;
 	    case FIELD_LOC_KIND_PHYSADDR:
 	      if (FIELD_STATIC_PHYSADDR (*field1)
-		  != FIELD_STATIC_PHYSADDR (*field2))
+		  != FIELD_STATIC_PHYSADDR (*field2)) {
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct physaddr mismatch");
 		return 0;
+	      }
 	      break;
 	    case FIELD_LOC_KIND_PHYSNAME:
 	      if (!compare_maybe_null_strings (FIELD_STATIC_PHYSNAME (*field1),
-					       FIELD_STATIC_PHYSNAME (*field2)))
+					       FIELD_STATIC_PHYSNAME (*field2))) {
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct physname mismatch");
 		return 0;
+	      }
 	      break;
 	    case FIELD_LOC_KIND_DWARF_BLOCK:
 	      {
@@ -3546,8 +3598,11 @@ check_types_equal (struct type *type1, struct type *type2,
 		block2 = FIELD_DWARF_BLOCK (*field2);
 		if (block1->per_cu != block2->per_cu
 		    || block1->size != block2->size
-		    || memcmp (block1->data, block2->data, block1->size) != 0)
+		    || memcmp (block1->data, block2->data, block1->size) != 0) {
+		if (type_equals_debug)
+			fprintf_unfiltered (gdb_stdlog, "struct dwarf mismatch");
 		  return 0;
+		}
 	      }
 	      break;
 	    default:
@@ -3566,15 +3621,21 @@ check_types_equal (struct type *type1, struct type *type2,
     {
       struct type_equality_entry entry;
 
-      if (TYPE_TARGET_TYPE (type2) == NULL)
+      if (TYPE_TARGET_TYPE (type2) == NULL) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "type target mismatch");
 	return 0;
+      }
 
       entry.type1 = TYPE_TARGET_TYPE (type1);
       entry.type2 = TYPE_TARGET_TYPE (type2);
       VEC_safe_push (type_equality_entry_d, *worklist, &entry);
     }
-  else if (TYPE_TARGET_TYPE (type2) != NULL)
+  else if (TYPE_TARGET_TYPE (type2) != NULL) {
+	if (type_equals_debug)
+		fprintf_unfiltered (gdb_stdlog, "type target2 mismatch");
     return 0;
+  }
 
   return 1;
 }
@@ -5482,4 +5543,11 @@ _initialize_gdbtypes (void)
 			   NULL, NULL,
 			   show_strict_type_checking,
 			   &setchecklist, &showchecklist);
+  add_setshow_zuinteger_cmd ("type-equals", no_class, &type_equals_debug,
+                           _("\
+Set debugging of type equality."), _("\
+Show debugging of type equality."), _("\
+When enabled (non-zero), type equality failures are logged."),
+                           NULL, NULL,
+                           &setdebuglist, &showdebuglist);
 }
