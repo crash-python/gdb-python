@@ -8449,7 +8449,13 @@ process_die (struct die_info *die, struct dwarf2_cu *cu)
   struct cleanup *in_process;
 
   /* We should only be processing those not already in process.  */
-  gdb_assert (!die->in_process);
+  if (die->in_process)
+    {
+      complaint (&symfile_complaints,
+		 _("DIE at 0x%x attempted to be processed twice"),
+		 to_underlying (die->sect_off));
+      return;
+    }
 
   die->in_process = 1;
   in_process = make_cleanup (reset_die_in_process,die);
