@@ -733,7 +733,7 @@ default_symfile_offsets (struct objfile *objfile,
 	if (bfd_section_vma (abfd, cur_sec) != 0)
 	  break;
 
-      if (cur_sec == NULL)
+      if (1 || cur_sec == NULL)
 	{
 	  CORE_ADDR *offsets = objfile->section_offsets->offsets;
 
