@@ -147,7 +147,7 @@ PyObject* DictIter_iternext(PyObject *self)
 }
 
 static PyTypeObject DictIterType = {
-PyObject_HEAD_INIT(NULL)
+PyVarObject_HEAD_INIT (NULL, 0)
 "gdb._DictIter",            /*tp_name*/
 sizeof(DictIter),       /*tp_basicsize*/
 0,                         /*tp_itemsize*/
