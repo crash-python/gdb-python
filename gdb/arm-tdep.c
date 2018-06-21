@@ -3477,7 +3477,7 @@ arm_vfp_cprc_reg_char (enum arm_vfp_cprc_base_type b)
    array).  Vector types are not currently supported, matching the
    generic AAPCS support.  */
 
-static int
+static LONGEST
 arm_vfp_cprc_sub_candidate (struct type *t,
 			    enum arm_vfp_cprc_base_type *base_type)
 {
@@ -3560,7 +3560,7 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 	  }
 	else
 	  {
-	    int count;
+	    LONGEST count;
 	    unsigned unitlen;
 
 	    count = arm_vfp_cprc_sub_candidate (TYPE_TARGET_TYPE (t),
@@ -3583,12 +3583,12 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 
     case TYPE_CODE_STRUCT:
       {
-	int count = 0;
+	LONGEST count = 0;
 	unsigned unitlen;
 	int i;
 	for (i = 0; i < TYPE_NFIELDS (t); i++)
 	  {
-	    int sub_count = 0;
+	    LONGEST sub_count = 0;
 
 	    if (!field_is_static (&TYPE_FIELD (t, i)))
 	      sub_count = arm_vfp_cprc_sub_candidate (TYPE_FIELD_TYPE (t, i),
@@ -3612,13 +3612,15 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 
     case TYPE_CODE_UNION:
       {
-	int count = 0;
+	LONGEST count = 0;
 	unsigned unitlen;
 	int i;
 	for (i = 0; i < TYPE_NFIELDS (t); i++)
 	  {
-	    int sub_count = arm_vfp_cprc_sub_candidate (TYPE_FIELD_TYPE (t, i),
-							base_type);
+	    LONGEST sub_count;
+
+	    sub_count = arm_vfp_cprc_sub_candidate (TYPE_FIELD_TYPE (t, i),
+						    base_type);
 	    if (sub_count == -1)
 	      return -1;
 	    count = (count > sub_count ? count : sub_count);
@@ -3654,7 +3656,7 @@ arm_vfp_call_candidate (struct type *t, enum arm_vfp_cprc_base_type *base_type,
 			int *count)
 {
   enum arm_vfp_cprc_base_type b = VFP_CPRC_UNKNOWN;
-  int c = arm_vfp_cprc_sub_candidate (t, &b);
+  LONGEST c = arm_vfp_cprc_sub_candidate (t, &b);
   if (c <= 0 || c > 4)
     return 0;
   *base_type = b;
@@ -3735,7 +3737,7 @@ arm_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 
   for (argnum = 0; argnum < nargs; argnum++)
     {
-      int len;
+      LONGEST len;
       struct type *arg_type;
       struct type *target_type;
       enum type_code typecode;
