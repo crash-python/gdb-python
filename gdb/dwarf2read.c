@@ -10612,6 +10612,14 @@ private:
 static void
 process_die (struct die_info *die, struct dwarf2_cu *cu)
 {
+  if (die->in_process)
+    {
+      complaint (&symfile_complaints,
+		 _("DIE at 0x%x attempted to be processed twice"),
+		 to_underlying (die->sect_off));
+      return;
+    }
+
   process_die_scope scope (die, cu);
 
   switch (die->tag)
