@@ -1127,7 +1127,29 @@ linux_nat_create_inferior (struct target_ops *ops,
   /* Make sure we report all signals during startup.  */
   linux_nat_pass_signals (ops, 0, NULL);
 
-  linux_ops->to_create_inferior (ops, exec_file, allargs, env, from_tty);
+  volatile struct gdb_exception ex;
+  TRY
+    {
+      linux_ops->to_create_inferior (ops, exec_file, allargs, env, from_tty);
+    }
+  CATCH (ex, RETURN_MASK_ERROR)
+    {
+      struct buffer buffer;
+      char *message, *buffer_s;
+
+      message = xstrdup (ex.message);
+      make_cleanup (xfree, message);
+
+      buffer_init (&buffer);
+      linux_ptrace_create_warnings (&buffer);
+
+      buffer_grow_str0 (&buffer, "");
+      buffer_s = buffer_finish (&buffer);
+      make_cleanup (xfree, buffer_s);
+
+      throw_error (ex.error, "%s%s", buffer_s, message);
+    }
+  END_CATCH
 }
 
 /* Callback for linux_proc_attach_tgid_threads.  Attach to PTID if not

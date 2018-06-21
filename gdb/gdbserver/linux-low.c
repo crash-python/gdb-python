@@ -963,7 +963,21 @@ linux_ptrace_fun ()
 {
   if (ptrace (PTRACE_TRACEME, 0, (PTRACE_TYPE_ARG3) 0,
 	      (PTRACE_TYPE_ARG4) 0) < 0)
-    trace_start_error_with_name ("ptrace");
+    {
+      int save_errno = errno;
+      struct buffer buffer;
+
+      buffer_init (&buffer);
+      linux_ptrace_create_warnings (&buffer);
+      buffer_grow_str0 (&buffer, "");
+
+      std::string msg
+	= string_printf (_("%sCannot trace created process"),
+			 buffer_finish (&buffer));
+
+      errno = save_errno;
+      trace_start_error_with_name (msg.c_str ());
+    }
 
   if (setpgid (0, 0) < 0)
     trace_start_error_with_name ("setpgid");
