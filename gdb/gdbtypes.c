@@ -2920,7 +2920,7 @@ floatformat_from_type (const struct type *type)
    least as long as OBJFILE.  */
 
 struct type *
-init_type (struct objfile *objfile, enum type_code code, int bit,
+init_type (struct objfile *objfile, enum type_code code, LONGEST bit,
 	   const char *name)
 {
   struct type *type;
@@ -3252,8 +3252,8 @@ is_public_ancestor (struct type *base, struct type *dclass)
 
 static int
 is_unique_ancestor_worker (struct type *base, struct type *dclass,
-			   int *offset,
-			   const gdb_byte *valaddr, int embedded_offset,
+			   LONGEST *offset,
+			   const gdb_byte *valaddr, LONGEST embedded_offset,
 			   CORE_ADDR address, struct value *val)
 {
   int i, count = 0;
@@ -3264,7 +3264,7 @@ is_unique_ancestor_worker (struct type *base, struct type *dclass,
   for (i = 0; i < TYPE_N_BASECLASSES (dclass) && count < 2; ++i)
     {
       struct type *iter;
-      int this_offset;
+      LONGEST this_offset;
 
       iter = check_typedef (TYPE_BASECLASS (dclass, i));
 
@@ -3305,7 +3305,7 @@ is_unique_ancestor_worker (struct type *base, struct type *dclass,
 int
 is_unique_ancestor (struct type *base, struct value *val)
 {
-  int offset = -1;
+  LONGEST offset = -1;
 
   return is_unique_ancestor_worker (base, value_type (val), &offset,
 				    value_contents_for_printing (val),
@@ -4550,7 +4550,7 @@ recursive_dump_type (struct type *type, int spaces)
       break;
     }
   puts_filtered ("\n");
-  printfi_filtered (spaces, "length %d\n", TYPE_LENGTH (type));
+  printfi_filtered (spaces, "length %s\n", pulongest (TYPE_LENGTH (type)));
   if (TYPE_OBJFILE_OWNED (type))
     {
       printfi_filtered (spaces, "objfile ");
@@ -4991,7 +4991,7 @@ copy_type (const struct type *type)
 
 struct type *
 arch_type (struct gdbarch *gdbarch,
-	   enum type_code code, int bit, const char *name)
+	   enum type_code code, LONGEST bit, const char *name)
 {
   struct type *type;
 

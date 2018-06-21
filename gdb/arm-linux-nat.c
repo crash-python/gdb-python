@@ -1067,7 +1067,7 @@ arm_linux_remove_hw_breakpoint (struct target_ops *self,
    ADDR?  */
 static int
 arm_linux_region_ok_for_hw_watchpoint (struct target_ops *self,
-				       CORE_ADDR addr, int len)
+				       CORE_ADDR addr, LONGEST len)
 {
   const struct arm_linux_hwbp_cap *cap = arm_linux_get_hwbp_cap ();
   CORE_ADDR max_wp_length, aligned_addr;

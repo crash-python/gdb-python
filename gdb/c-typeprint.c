@@ -933,7 +933,8 @@ c_print_type_union_field_offset (struct type *type, unsigned int field_idx,
 {
   struct type *ftype = check_typedef (TYPE_FIELD_TYPE (type, field_idx));
 
-  fprintf_filtered (stream, "/*              %4u */", TYPE_LENGTH (ftype));
+  fprintf_filtered (stream, "/*              %4s */",
+		    pulongest (TYPE_LENGTH (ftype)));
 }
 
 /* Print information about field at index FIELD_IDX of the struct type
@@ -1507,8 +1508,8 @@ c_type_print_base_struct_union (struct type *type, struct ui_file *stream,
 	      print_spaces_filtered_with_print_options (level + 4,
 							stream,
 							flags);
-	      fprintf_filtered (stream, "/* total size (bytes): %4u */\n",
-				TYPE_LENGTH (type));
+	      fprintf_filtered (stream, "/* total size (bytes): %4s */\n",
+				pulongest (TYPE_LENGTH (type)));
 	    }
 
 	  print_spaces_filtered (OFFSET_SPC_LEN, stream);

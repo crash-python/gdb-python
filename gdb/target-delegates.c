@@ -760,14 +760,14 @@ debug_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, COR
 }
 
 static int
-delegate_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2)
+delegate_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, LONGEST arg2)
 {
   self = self->beneath;
   return self->to_region_ok_for_hw_watchpoint (self, arg1, arg2);
 }
 
 static int
-debug_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2)
+debug_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, LONGEST arg2)
 {
   int result;
   fprintf_unfiltered (gdb_stdlog, "-> %s->to_region_ok_for_hw_watchpoint (...)\n", debug_target.to_shortname);
@@ -777,7 +777,7 @@ debug_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, int 
   fputs_unfiltered (", ", gdb_stdlog);
   target_debug_print_CORE_ADDR (arg1);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_int (arg2);
+  target_debug_print_LONGEST (arg2);
   fputs_unfiltered (") = ", gdb_stdlog);
   target_debug_print_int (result);
   fputs_unfiltered ("\n", gdb_stdlog);

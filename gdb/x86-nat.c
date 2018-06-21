@@ -174,7 +174,7 @@ x86_remove_watchpoint (struct target_ops *self, CORE_ADDR addr, int len,
 
 static int
 x86_region_ok_for_watchpoint (struct target_ops *self,
-			      CORE_ADDR addr, int len)
+			      CORE_ADDR addr, LONGEST len)
 {
   struct x86_debug_reg_state *state
     = x86_debug_reg_state (ptid_get_pid (inferior_ptid));
