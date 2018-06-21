@@ -733,14 +733,14 @@ debug_stopped_data_address (struct target_ops *self, CORE_ADDR *arg1)
 }
 
 static int
-delegate_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
+delegate_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, LONGEST arg3)
 {
   self = self->beneath;
   return self->to_watchpoint_addr_within_range (self, arg1, arg2, arg3);
 }
 
 static int
-debug_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
+debug_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, LONGEST arg3)
 {
   int result;
   fprintf_unfiltered (gdb_stdlog, "-> %s->to_watchpoint_addr_within_range (...)\n", debug_target.to_shortname);
@@ -752,7 +752,7 @@ debug_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, COR
   fputs_unfiltered (", ", gdb_stdlog);
   target_debug_print_CORE_ADDR (arg2);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_int (arg3);
+  target_debug_print_LONGEST (arg3);
   fputs_unfiltered (") = ", gdb_stdlog);
   target_debug_print_int (result);
   fputs_unfiltered ("\n", gdb_stdlog);
@@ -785,20 +785,20 @@ debug_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, LONG
 }
 
 static int
-delegate_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
+delegate_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, LONGEST arg2, int arg3, struct expression *arg4)
 {
   self = self->beneath;
   return self->to_can_accel_watchpoint_condition (self, arg1, arg2, arg3, arg4);
 }
 
 static int
-tdefault_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
+tdefault_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, LONGEST arg2, int arg3, struct expression *arg4)
 {
   return 0;
 }
 
 static int
-debug_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
+debug_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, LONGEST arg2, int arg3, struct expression *arg4)
 {
   int result;
   fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_accel_watchpoint_condition (...)\n", debug_target.to_shortname);
@@ -808,7 +808,7 @@ debug_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, i
   fputs_unfiltered (", ", gdb_stdlog);
   target_debug_print_CORE_ADDR (arg1);
   fputs_unfiltered (", ", gdb_stdlog);
-  target_debug_print_int (arg2);
+  target_debug_print_LONGEST (arg2);
   fputs_unfiltered (", ", gdb_stdlog);
   target_debug_print_int (arg3);
   fputs_unfiltered (", ", gdb_stdlog);
