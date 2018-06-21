@@ -1915,9 +1915,11 @@ extern struct thread_info *target_thread_handle_to_thread_info
    one.  OTHERTYPE is the number of watchpoints of other types than
    this one used so far.  */
 
+#ifndef target_can_use_hardware_watchpoint
 #define target_can_use_hardware_watchpoint(TYPE,CNT,OTHERTYPE) \
  (*current_target.to_can_use_hw_breakpoint) (&current_target,  \
 					     TYPE, CNT, OTHERTYPE)
+#endif
 
 /* Returns the number of debug registers needed to watch the given
    memory region, or zero if not supported.  */

@@ -8864,7 +8864,7 @@ init_breakpoint_sal (struct breakpoint *b, struct gdbarch *gdbarch,
 		     int enabled, int internal, unsigned flags,
 		     int display_canonical)
 {
-  int i;
+  int i ATTRIBUTE_UNUSED;
 
   if (type == bp_hardware_breakpoint)
     {
@@ -14425,7 +14425,7 @@ enable_breakpoint_disp (struct breakpoint *bpt, enum bpdisp disposition,
 
   if (bpt->type == bp_hardware_breakpoint)
     {
-      int i;
+      int i ATTRIBUTE_UNUSED;
       i = hw_breakpoint_used_count ();
       target_resources_ok = 
 	target_can_use_hardware_watchpoint (bp_hardware_breakpoint, 
