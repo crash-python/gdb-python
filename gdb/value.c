@@ -926,6 +926,7 @@ allocate_value_lazy (struct type *type)
      description correctly.  */
   check_typedef (type);
 
+  ulongest_fits_host_or_error (TYPE_LENGTH (type));
   val = XCNEW (struct value);
   val->contents = NULL;
   val->next = all_values;
@@ -1023,6 +1024,8 @@ check_type_length_before_alloc (const struct type *type)
 static void
 allocate_value_contents (struct value *val)
 {
+  ulongest_fits_host_or_error (TYPE_LENGTH (val->enclosing_type));
+
   if (!val->contents)
     {
       check_type_length_before_alloc (val->enclosing_type);
@@ -3015,6 +3018,7 @@ set_value_enclosing_type (struct value *val, struct type *new_encl_type)
   if (TYPE_LENGTH (new_encl_type) > TYPE_LENGTH (value_enclosing_type (val)))
     {
       check_type_length_before_alloc (new_encl_type);
+      ulongest_fits_host_or_error (TYPE_LENGTH (new_encl_type));
       val->contents
 	= (gdb_byte *) xrealloc (val->contents, TYPE_LENGTH (new_encl_type));
     }
