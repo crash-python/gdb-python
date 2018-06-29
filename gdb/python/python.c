@@ -1912,6 +1912,7 @@ do_start_initialization ()
       || gdbpy_initialize_lazy_string () < 0
       || gdbpy_initialize_linetable () < 0
       || gdbpy_initialize_thread () < 0
+      || gdbpy_initialize_target() < 0
       || gdbpy_initialize_inferior () < 0
       || gdbpy_initialize_events () < 0
       || gdbpy_initialize_eventregistry () < 0
@@ -2272,6 +2273,9 @@ Return a tuple containing all inferiors." },
 Invalidate any cached frame objects in gdb.\n\
 Intended for internal use only." },
 
+  { "current_target", gdbpy_current_target, METH_NOARGS,
+     "current_target () -> gdb.Target.\n\
+Return the current target object." },
   {NULL, NULL, 0, NULL}
 };
 
