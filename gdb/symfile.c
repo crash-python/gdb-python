@@ -1161,7 +1161,8 @@ symbol_file_add_with_addrs (bfd *abfd, const char *name,
 
   finish_new_objfile (objfile, add_flags);
 
-  observer_notify_new_objfile (objfile);
+  if (!(add_flags & SYMFILE_NO_EVENT))
+    observer_notify_new_objfile (objfile);
 
   bfd_cache_close_all ();
   return (objfile);
@@ -2282,6 +2283,7 @@ add_symbol_file_command (const char *args, int from_tty)
 
 	  offset = parse_and_eval_address (arg);
 	  seen_offset = true;
+	  add_flags |= SYMFILE_NO_EVENT;
 	}
       else if (strcmp (arg, "--") == 0)
 	stop_processing_options = true;
@@ -2351,6 +2353,8 @@ add_symbol_file_command (const char *args, int from_tty)
     set_objfile_default_section_offset (objf, section_addrs, offset);
 
   add_target_sections_of_objfile (objf);
+  if (seen_offset)
+    observer_notify_new_objfile (objf);
 
   /* Getting new symbols may change our opinion about what is
      frameless.  */

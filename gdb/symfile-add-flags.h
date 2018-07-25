@@ -40,7 +40,11 @@ enum symfile_add_flag
 
     /* Do not immediately read symbols for this file.  By default,
        symbols are read when the objfile is created.  */
-    SYMFILE_NO_READ = 1 << 4
+    SYMFILE_NO_READ = 1 << 4,
+
+    /* Do not execute the new objfile callback event in
+       symbol_file_add_with_addrs.  */
+    SYMFILE_NO_EVENT = 1 << 5,
   };
 
 DEF_ENUM_FLAGS_TYPE (enum symfile_add_flag, symfile_add_flags);
