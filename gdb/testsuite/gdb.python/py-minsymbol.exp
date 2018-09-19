@@ -44,7 +44,7 @@ gdb_test "python print x.value()" "0x\[0-9a-f\]*.*" "get text minsym value"
 gdb_test "python print x.value().type" "void \\(\\*\\)\\(\\)" "get text minsym value type"
 
 # Test looking up a minimal symbol of data type
-gdb_test "print data_msym" " = \[0-9\]*" "locate data_msym with print"
+gdb_test "print (void *)data_msym" "0x\[0-9a-f\]*.*" "locate data_msym with print"
 gdb_py_test_silent_cmd "python x = gdb.lookup_minimal_symbol('data_msym')" "Lookup data_msym" 1
 gdb_test "python print x.name" "data_msym" "get data minsym name"
 gdb_test "python print x.linkage_name" "data_msym" "get data minsym linkage_name"
