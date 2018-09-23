@@ -88,7 +88,6 @@ static const struct objfile_data *msympy_objfile_data_key;
 static PyObject *
 msympy_str (PyObject *self)
 {
-  PyObject *result;
   struct minimal_symbol *minsym = NULL;
 
   MSYMPY_REQUIRE_VALID (self, minsym);
@@ -334,7 +333,6 @@ gdb_PyUnicode_AsUTF8(PyObject *obj)
 PyObject *
 gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args, PyObject *kw)
 {
-  int domain = VAR_DOMAIN;
   const char *name, *sfile = NULL;
   struct objfile *objfile = NULL;
   static const char *keywords[] = { "name", "sfile", "objfile", NULL };
