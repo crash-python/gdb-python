@@ -400,7 +400,7 @@ del_objfile_msymbols (struct objfile *objfile, void *datum)
       obj->next = NULL;
       obj->prev = NULL;
 
-      obj = obj->next;
+      obj = next;
     }
 }
 
