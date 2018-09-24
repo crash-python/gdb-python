@@ -27,6 +27,8 @@ text_msym:\n\
 .globl data_msym\n\
 data_msym:\n\
 	.asciz \"minsym text\"\n\
+data_msym2:\n\
+	.asciz \"minsym2 text\"\n\
 ");
 
 int
