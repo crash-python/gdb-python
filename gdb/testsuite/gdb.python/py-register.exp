@@ -39,7 +39,7 @@ gdb_py_test_silent_cmd "python regs = gdb.selected_thread().registers"  "Keep a 
 
 # Hopefully an architecture-independent way of finding a GPR to test; Reg #0
 gdb_py_test_silent_cmd "python gpr0 = sorted(regs.values(), key=lambda x: x.regnum)\[0\]" "saving the name of GPR#0" 1
-gdb_test "python print gpr0" "<gdb.Register object at.*" "Test to get a register"
+gdb_test "python print (gpr0)" "<gdb.Register object at.*" "Test to get a register"
 gdb_py_test_silent_cmd "python gpr0.value = 1" "Test assignment to GPR" 1
 gdb_test_multiple "python gpr0.value = \"oh hai\"" "Test assignment to GPR of invalid type" {
     -re "Traceback.*TypeError:.*$gdb_prompt $" {
@@ -52,7 +52,7 @@ gdb_test_multiple "python regs\[\'foo\'\] = 0" "Testing that register dict is st
 	pass "1"
     }
 }
-gdb_test_multiple "python print regs\[\'foo\'\]" "Testing that register dict is static (reading)" {
+gdb_test_multiple "python print (regs\[\'foo\'\])" "Testing that register dict is static (reading)" {
     -re "Traceback.*KeyError:.*$gdb_prompt $" {
 	pass "1"
     }
