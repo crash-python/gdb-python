@@ -105,7 +105,7 @@ blpy_iter (PyObject *self)
 
 typedef struct {
 	PyObject_HEAD
-	struct dict_iterator iter;
+	struct mdict_iterator iter;
 	int finished;
 	void *value;
 	PyObject *(*func)(void *);
@@ -136,7 +136,7 @@ PyObject* DictIter_iternext(PyObject *self)
 
   v = p->func((struct symbol*)p->value);
 
-  n = dict_iterator_next(&p->iter);
+  n = mdict_iterator_next(&p->iter);
 
   if (!n)
     p->finished = 1;
@@ -174,7 +174,7 @@ static PyTypeObject DictIterType = {
   0,  /* tp_weaklistoffset */
   DictIter_iter,  /* tp_iter: __iter__() method */
   DictIter_iternext  /* tp_iternext: next() method */,
-  .tp_new = PyType_GenericNew
+//  .tp_new = PyType_GenericNew,
 };
 
 static PyObject *
@@ -194,7 +194,7 @@ blpy_get_symbols(PyObject *self, void *closure)
     return NULL;
   }
 
-  s = dict_iterator_first(block->dict, &((DictIter*)tmp)->iter);
+  s = mdict_iterator_first(block->multidict, &((DictIter*)tmp)->iter);
 
   ((DictIter*)tmp)->value = s;
   ((DictIter*)tmp)->func = obj_to_sym;

@@ -288,6 +288,20 @@ gdb_PyArg_ParseTupleAndKeywords (PyObject *args, PyObject *kw,
   return res;
 }
 
+static inline PyObject *
+gdb_PyObject_CallFunction (PyObject *callable, const char *format, ...)
+{
+  va_list ap;
+  PyObject *res;
+
+  va_start (ap, format);
+  res = PyObject_CallFunction (callable, const_cast<char *>(format), ap);
+  va_end (ap);
+
+  return res;
+}
+
+
 /* In order to be able to parse symtab_and_line_to_sal_object function
    a real symtab_and_line structure is needed.  */
 #include "symtab.h"
@@ -390,8 +404,7 @@ typedef struct
 } thread_object;
 
 struct inferior_object;
-struct private_thread_info;
-void thpy_private_dtor (struct private_thread_info *info);
+
 
 extern struct cmd_list_element *set_python_list;
 extern struct cmd_list_element *show_python_list;

@@ -108,12 +108,12 @@ register_get_value(PyObject *self, void *closure)
 	   * We don't want raw read since that expects to
 	   * read it from the core file
 	   */
-	  value = regcache_cooked_read_value (regcache, obj->regnum);
+	  value = regcache->cooked_read_value (obj->regnum);
 	}
     }
   catch (const gdb_exception &except)
     {
-      GDB_PY_HANDLE_EXCEPTION (ex);
+      GDB_PY_HANDLE_EXCEPTION (except);
     }
 
   return value_to_value_object(value);
@@ -157,7 +157,7 @@ write_register (struct regcache *regcache, int reg, const void *data)
       regcache_write_pc (regcache, pc);
     }
   else
-    regcache_raw_supply (regcache, reg, data);
+    regcache->raw_supply (reg, data);
 
   return 0;
 }
@@ -168,7 +168,6 @@ register_set_value(PyObject *self, PyObject *value_obj, void *closure)
   struct type *type = NULL;
   register_object *obj;
   int ret = -1;
-  size_t size = 0;
 
   REGPY_REQUIRE_VALID(self, obj, -1);
 
@@ -226,7 +225,7 @@ register_set_value(PyObject *self, PyObject *value_obj, void *closure)
 	  else
 	    PyErr_Format (PyExc_TypeError,
 		      "Value must be int, long, bytearray, or gdb.Value and convertible to `%s%s'",
-		      type_prefix (type), type_name_no_tag (type));
+		      type_prefix (type), TYPE_NAME (type));
 	}
     }
   catch (const gdb_exception &except)
@@ -319,7 +318,7 @@ del_thread_registers (thread_object *thread)
     }
 }
 
-static PyGetSetDef register_object_getset[] = {
+static gdb_PyGetSetDef register_object_getset[] = {
   { "name", register_get_name, NULL, "Register name.", NULL },
   { "value", register_get_value, register_set_value, "Register value.", NULL },
   { "size", register_get_size, NULL, "Register size.", NULL },

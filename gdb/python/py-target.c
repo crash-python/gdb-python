@@ -23,8 +23,7 @@
 #include "python-internal.h"
 #include "language.h"
 #include "arch-utils.h"
-
-#include "py-target.h"
+#include "process-stratum-target.h"
 
 static PyObject *py_target_xfer_eof_error;
 static PyObject *py_target_xfer_unavailable_error;
@@ -32,22 +31,74 @@ static PyObject *py_target_xfer_unavailable_error;
 extern PyTypeObject target_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("target_object");
 
-/* Require that Target operations are valid */
-#define THPY_REQUIRE_VALID_RETURN(Target, ret)			\
-  do {								\
-    if (0)							\
-      {								\
-	PyErr_SetString (PyExc_RuntimeError,			\
-			 _("Target not valid."));		\
-	return ret;						\
-      }								\
-  } while (0)
+class python_target final : public process_stratum_target
+{
+public:
+  python_target (PyObject *owner) : owner(owner), registered(false) {
+	  _info.shortname = NULL;
+	  _info.longname = NULL;
+	  _info.doc = NULL;
+  }
+  virtual ~python_target () override {
+	  printf ("c++ destructor called\n");
+	  if (registered)
+	    unregister_target ();
+#if 1
+	  xfree (const_cast<char *>(_info.shortname));
+	  xfree (const_cast<char *>(_info.longname));
+	  xfree (const_cast<char *>(_info.doc));
+#endif
+  }
+  const target_info &info () const override {
+    return _info;
+  }
+  strata stratum () const override { return thread_stratum; }
 
-#define THPY_REQUIRE_VALID(Target)				\
-	THPY_REQUIRE_VALID_RETURN(Target, NULL)
+  void open (const char *name, int from_tty);
 
-#define THPY_REQUIRE_VALID_INT(Target)				\
-	THPY_REQUIRE_VALID_RETURN(Target, 0)
+  void close () override;
+
+  enum target_xfer_status xfer_partial (enum target_object object,
+					const char *annex,
+					gdb_byte *gdb_readbuf,
+					const gdb_byte *gdb_writebuf,
+					ULONGEST offset, ULONGEST len,
+					ULONGEST *xfered_len) override;
+  const char *thread_name (struct thread_info *info) override;
+  const char *extra_thread_info (struct thread_info *info) override;
+  void update_thread_list (void) override;
+  std::string pid_to_str (ptid_t ptid) override;
+  bool thread_alive (ptid_t ptid) override;
+  void fetch_registers (struct regcache *regcache, int reg) override;
+  bool has_execution (ptid_t ptid) override;
+  void store_registers (struct regcache *regcache, int reg) override;
+  void prepare_to_store (struct regcache *regcache) override;
+
+  int set_shortname (PyObject *name);
+  int set_longname (PyObject *name);
+  int set_docstring (PyObject *name);
+
+  void register_target (void);
+  void unregister_target (void);
+private:
+  target_info _info;
+#if 0
+  gdb::unique_xmalloc_ptr<char> _shortname;
+  gdb::unique_xmalloc_ptr<char> _longname;
+  gdb::unique_xmalloc_ptr<char> _docstring;
+#endif
+  PyObject *owner;
+  bool registered;
+
+  std::function<target_open_ftype> bound;
+};
+
+typedef struct
+{
+  PyObject_HEAD
+
+  python_target *target_ops;
+} pytarget_object;
 
 /* Container of, courtesy of Linux Kernel for now */
 #ifndef offsetof
@@ -81,53 +132,119 @@ extern PyTypeObject target_object_type
  *
  *****************************************************************************/
 
-/*
- * Our Target Ops structure will be stored inside our Target Object
- * This gives us the opportunity to find our Python Object when we are called
- * from C code
- */
-static target_object * target_ops_to_target_obj(struct target_ops *ops)
-{
-    return container_of(ops, target_object, ops);
-}
-
-
-
-// Identify if our class (self) has a method to support this call
-#define HasMethodOrReturnBeneath(py_ob, op, ops, args...)	\
-	if (!PyObject_HasAttrString(py_ob, #op))		\
-	{							\
-	    do_cleanups (cleanup);				\
-	    ops = ops->beneath;					\
-	    return ops->op(ops, ##args);			\
-	}
-
 static char scratch_buf[4096];
 
-static const
-char *py_target_to_thread_name (struct target_ops *ops,
-				struct thread_info *info)
+#define pytarget_has_op(op)					\
+	PyObject_HasAttrString (owner, #op)
+
+void
+python_target::open (const char *argstring, int from_tty)
 {
-    target_object *target_obj = target_ops_to_target_obj (ops);
-    PyObject *self = (PyObject *) target_obj;
+  target_ops *ops;
+  PyObject *callback = NULL;
+  PyObject *ret = NULL;
+  PyObject *args = NULL;
+
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  if (!pytarget_has_op (open))
+    error (_("Python target has no open callback"));
+
+  ops = find_target_at (thread_stratum);
+  if (ops && !have_inferiors ())
+    {
+      if (from_tty && !query (_("Another target is open.  Close it?")))
+	error (_("Refusing to replace other target."));
+    }
+
+  target_preopen (from_tty);
+
+  reopen_exec_file ();
+  reread_symbols ();
+  init_thread_list ();
+
+  callback = PyObject_GetAttrString (owner, "open");
+  if (!callback)
+    goto error;
+
+  args = PyString_FromString (argstring);
+  if (!args)
+    goto error;
+
+  ret = PyObject_Call (callback, args, NULL);
+  if (!ret)
+    goto error;
+
+  Py_INCREF (owner);
+
+error:
+  Py_XDECREF (callback);
+  Py_XDECREF (ret);
+  Py_XDECREF (args);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing open callback."));
+    }
+}
+
+void
+python_target::close (void)
+{
+  PyObject *callback = NULL;
+  PyObject *ret = NULL;
+
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  if (!pytarget_has_op (close))
+    error (_("Python target has no close callback"));
+
+  inferior_ptid = null_ptid;
+  discard_all_inferiors ();
+
+  trace_reset_local_state ();
+
+  callback = PyObject_GetAttrString (owner, "close");
+  if (!callback)
+    goto error;
+
+  ret = PyObject_Call (callback, Py_None, NULL);
+  if (!ret)
+    goto error;
+
+error:
+  Py_XDECREF (callback);
+  Py_XDECREF (ret);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing close callback."));
+    }
+}
+
+const char *
+python_target::thread_name (struct thread_info *info)
+{
     PyObject *arglist  = NULL;
     PyObject *result   = NULL;
     PyObject *callback = NULL;
     PyObject *thread   = NULL;
 
-    struct cleanup *cleanup;
+    gdb::unique_xmalloc_ptr<char> host_string_holder;
     char *host_string = NULL;
 
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
+    gdbpy_enter enter_py (target_gdbarch (), current_language);
+    if (!pytarget_has_op (info))
+      return process_stratum_target::thread_name (info);
 
-    HasMethodOrReturnBeneath (self, to_thread_name, ops, info);
+    callback = PyObject_GetAttrString (owner, "thread_name");
+    if (!callback)
+      goto error;
 
     /* (re-)initialise the static string before use in case of error */
     scratch_buf[0] = '\0';
-
-    callback = PyObject_GetAttrString (self, "to_thread_name");
-    if (!callback)
-      goto error;
 
     thread = gdbpy_selected_thread (NULL, NULL);
     if (!thread)
@@ -146,13 +263,14 @@ char *py_target_to_thread_name (struct target_ops *ops,
      * GDB will raise an exception that the caller will catch.
      * Python will raise an exception and return NULL.
      */
-    host_string = python_string_to_host_string (result);
-    if (!host_string)
+    host_string_holder = python_string_to_host_string (result);
+    if (!host_string_holder)
       goto error;
 
+    host_string = host_string_holder.get ();
+
     strncpy (scratch_buf, host_string, sizeof (scratch_buf) - 1);
-    scratch_buf[sizeof(scratch_buf) - 1] = '\0';
-    xfree ((void *) host_string);
+    scratch_buf[sizeof (scratch_buf) - 1] = '\0';
 
 error:
     Py_XDECREF (result);
@@ -163,37 +281,33 @@ error:
     if (PyErr_Occurred ())
       {
 	gdbpy_print_stack ();
-	error (_("Error in Python while executing to_thread_name callback."));
+	error (_("Error in Python while executing thread_name callback."));
       }
 
-    do_cleanups (cleanup);
     return scratch_buf;
 }
 
-static enum target_xfer_status
-py_target_to_xfer_partial (struct target_ops *ops,
-			   enum target_object object, const char *annex,
+enum target_xfer_status
+python_target::xfer_partial (enum target_object object, const char *annex,
 			   gdb_byte *gdb_readbuf, const gdb_byte *gdb_writebuf,
 			   ULONGEST offset, ULONGEST len, ULONGEST *xfered_len)
 {
-    target_object *target_obj = target_ops_to_target_obj (ops);
-    PyObject *self = (PyObject *) target_obj;
     PyObject *callback  = NULL;
     PyObject *readbuf  = NULL;
     PyObject *writebuf = NULL;
     PyObject *ret       = NULL;
 
-    struct cleanup *cleanup;
     enum target_xfer_status rt = TARGET_XFER_E_IO;
     unsigned long lret;
 
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
+    gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-    HasMethodOrReturnBeneath (self, to_xfer_partial, ops, object, annex,
-			      gdb_readbuf, gdb_writebuf, offset, len,
-			      xfered_len);
+    if (!pytarget_has_op (to_xfer_partial))
+      return process_stratum_target::xfer_partial (object, annex, gdb_readbuf,
+						   gdb_writebuf, offset,
+						   len, xfered_len);
 
-    callback = PyObject_GetAttrString (self, "to_xfer_partial");
+    callback = PyObject_GetAttrString (owner, "xfer_partial");
     if (!callback)
       goto error;
 
@@ -221,25 +335,25 @@ py_target_to_xfer_partial (struct target_ops *ops,
 	Py_INCREF (Py_None);
       }
 
-    ret = PyObject_CallFunction (callback, "(isOOKK)", (int)object, annex,
-				 readbuf, writebuf, offset, len);
-    if (PyErr_Occurred())
+    ret = gdb_PyObject_CallFunction (callback, "(isOOKK)", (int)object, annex,
+				     readbuf, writebuf, offset, len);
+    if (PyErr_Occurred ())
       {
 	if (PyErr_ExceptionMatches (py_target_xfer_eof_error))
 	  {
-	    PyErr_Clear();
+	    PyErr_Clear ();
 	    rt = TARGET_XFER_EOF;
 	    goto error;
 	  }
 	else if (PyErr_ExceptionMatches (PyExc_IOError))
 	  {
-	    PyErr_Clear();
+	    PyErr_Clear ();
 	    rt = TARGET_XFER_E_IO;
 	    goto error;
 	  }
 	else if (PyErr_ExceptionMatches (py_target_xfer_unavailable_error))
 	  {
-	    PyErr_Clear();
+	    PyErr_Clear ();
 	    rt = TARGET_XFER_UNAVAILABLE;
 	    *xfered_len = len;
 	    goto error;
@@ -268,46 +382,76 @@ error:
     if (PyErr_Occurred ())
       {
 	gdbpy_print_stack ();
-	error (_("Error in Python while executing to_xfer_partial callback."));
+	error (_("Error in Python while executing xfer_partial callback."));
       }
 
-    do_cleanups (cleanup);
     return rt;
 }
 
-static char *
-py_target_to_extra_thread_info (struct target_ops *ops, struct thread_info *info)
+const char *
+python_target::extra_thread_info (struct thread_info *info)
 {
-    /* Note how we can obtain our Parent Python Object from the ops too */
-    target_object *target_obj = target_ops_to_target_obj(ops);
-    PyObject * self = (PyObject *)target_obj;
-
-    struct cleanup *cleanup;
-    cleanup = ensure_python_env (target_gdbarch (), current_language);
-
-    HasMethodOrReturnBeneath(self, to_extra_thread_info, ops, info);
-
-    do_cleanups(cleanup);
-
-    return "Linux task";
-}
-
-static void
-py_target_to_update_thread_list (struct target_ops *ops)
-{
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject * self = (PyObject *) target_obj;
   PyObject *callback = NULL;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
 
-  struct cleanup *cleanup;
+  gdb::unique_xmalloc_ptr<char> host_string_holder;
+  char *host_string = NULL;
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
+  scratch_buf[0] = '\0';
 
-  HasMethodOrReturnBeneath (self, to_update_thread_list, ops);
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  callback = PyObject_GetAttrString (self, "to_update_thread_list");
+  if (!pytarget_has_op (extra_thread_info))
+    return NULL;
+
+  callback = PyObject_GetAttrString (owner, "extra_thread_info");
+  if (!callback)
+    goto error;
+
+  arglist = Py_BuildValue ("()");
+  if (!arglist)
+    goto error;
+
+  result = PyObject_Call (callback, arglist, NULL);
+  if (!result)
+    goto error;
+
+  host_string_holder = python_string_to_host_string (result);
+  if (!host_string_holder)
+    goto error;
+
+  host_string = host_string_holder.get ();
+  strncpy (scratch_buf, host_string, sizeof (scratch_buf) - 1);
+  scratch_buf[sizeof (scratch_buf) - 1] = '\0';
+
+error:
+  Py_XDECREF (result);
+  Py_XDECREF (arglist);
+  Py_XDECREF (callback);
+
+  if (PyErr_Occurred ())
+    {
+      gdbpy_print_stack ();
+      error (_("Error in Python while executing update_thread_list callback."));
+    }
+
+    return scratch_buf;
+}
+
+void
+python_target::update_thread_list (void)
+{
+  PyObject *callback = NULL;
+  PyObject *arglist  = NULL;
+  PyObject *result   = NULL;
+
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  if (!pytarget_has_op (update_thread_list))
+    return;
+
+  callback = PyObject_GetAttrString (owner, "update_thread_list");
   if (!callback)
     goto error;
 
@@ -327,30 +471,27 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_update_thread_list callback."));
+      error (_("Error in Python while executing update_thread_list callback."));
     }
 
-  do_cleanups (cleanup);
 }
 
-static int
-py_target_to_thread_alive (struct target_ops *ops, ptid_t ptid)
+bool
+python_target::thread_alive (ptid_t ptid)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject *self = (PyObject *) target_obj;
   PyObject *ptid_obj = NULL;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
 
-  struct cleanup *cleanup;
   long ret = 0;
 
-  cleanup = ensure_python_env (get_current_arch (), current_language);
+  gdbpy_enter enter_py (get_current_arch (), current_language);
 
-  HasMethodOrReturnBeneath (self, to_thread_alive, ops, ptid);
+  if (!pytarget_has_op (thread_alive))
+    return false;
 
-  callback = PyObject_GetAttrString (self, "to_thread_alive");
+  callback = PyObject_GetAttrString (owner, "thread_alive");
   if (!callback)
     goto error;
 
@@ -377,32 +518,31 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_thread_alive callback."));
+      error (_("Error in Python while executing thread_alive callback."));
     }
 
-  do_cleanups (cleanup);
   return ret;
 }
 
-static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
+std::string
+python_target::pid_to_str (ptid_t ptid)
 {
-  /* Note how we can obtain our Parent Python Object from the ops too */
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject *self = (PyObject *) target_obj;
   PyObject *ptid_obj = NULL;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
 
-  struct cleanup *cleanup;
-  char *ret;
-
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
-  HasMethodOrReturnBeneath (self, to_pid_to_str, ops, ptid);
+  gdb::unique_xmalloc_ptr<char> host_string_holder;
+  char *host_string = NULL;
 
   scratch_buf[0] = '\0';
 
-  callback = PyObject_GetAttrString (self, "to_pid_to_str");
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+
+  if (!pytarget_has_op (pid_to_str))
+    return process_stratum_target::pid_to_str (ptid);
+
+  callback = PyObject_GetAttrString (owner, "pid_to_str");
   if (!callback)
     goto error;
 
@@ -419,13 +559,14 @@ static char *py_target_to_pid_to_str(struct target_ops *ops, ptid_t ptid)
   if (!result)
     goto error;
 
-  ret = python_string_to_host_string (result);
-  if (!ret)
+  host_string_holder = python_string_to_host_string (result);
+  if (!host_string_holder)
     goto error;
 
-  strncpy (scratch_buf, ret, sizeof (scratch_buf) - 1);
+  host_string = host_string_holder.get ();
+
+  strncpy (scratch_buf, host_string, sizeof (scratch_buf) - 1);
   scratch_buf[sizeof (scratch_buf) - 1] = '\0';
-  xfree (ret);
 
 error:
   Py_XDECREF (arglist);
@@ -436,30 +577,27 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_pid_to_str callback."));
+      error (_("Error in Python while executing pid_to_str callback."));
     }
 
-  do_cleanups (cleanup);
   return scratch_buf;
 }
 
-static void py_target_to_fetch_registers (struct target_ops *ops,
-					  struct regcache *regcache, int reg)
+void
+python_target::fetch_registers (struct regcache *regcache, int reg)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
   PyObject *reg_obj  = NULL;
   PyObject *thread = NULL;
 
-  struct cleanup *cleanup;
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
-  HasMethodOrReturnBeneath (self, to_fetch_registers, ops, regcache, reg);
+  if (!pytarget_has_op (fetch_registers))
+    return;
 
-  callback = PyObject_GetAttrString (self, "to_fetch_registers");
+  callback = PyObject_GetAttrString (owner, "fetch_registers");
   if (!callback)
     goto error;
 
@@ -489,28 +627,24 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_fetch_registers callback."));
+      error (_("Error in Python while executing fetch_registers callback."));
     }
 
-  do_cleanups (cleanup);
 }
 
-static void py_target_to_prepare_to_store (struct target_ops *ops,
-					   struct regcache *regcache)
+void
+python_target::prepare_to_store (struct regcache *regcache)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
   PyObject *thread = NULL;
 
-  struct cleanup *cleanup;
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+  if (!pytarget_has_op (prepare_to_store))
+    return;
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
-  HasMethodOrReturnBeneath (self, to_prepare_to_store, ops, regcache);
-
-  callback = PyObject_GetAttrString (self, "to_prepare_to_store");
+  callback = PyObject_GetAttrString (owner, "prepare_to_store");
   if (!callback)
     goto error;
 
@@ -535,29 +669,25 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_prepare_to_store callback."));
+      error (_("Error in Python while executing prepare_to_store callback."));
     }
-
-  do_cleanups (cleanup);
 }
 
-static void py_target_to_store_registers (struct target_ops *ops,
-					  struct regcache *regcache, int reg)
+void
+python_target::store_registers (struct regcache *regcache, int reg)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
   PyObject *reg_obj  = NULL;
   PyObject *thread = NULL;
 
-  struct cleanup *cleanup;
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
-  HasMethodOrReturnBeneath (self, to_store_registers, ops, regcache, reg);
+  if (!pytarget_has_op (store_registers))
+    return;
 
-  callback = PyObject_GetAttrString (self, "to_store_registers");
+  callback = PyObject_GetAttrString (owner, "store_registers");
   if (!callback)
     goto error;
 
@@ -587,32 +717,28 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_store_registers callback."));
+      error (_("Error in Python while executing store_registers callback."));
     }
-
-  do_cleanups (cleanup);
 }
 
-static int
-py_target_to_has_execution (struct target_ops *ops, ptid_t ptid)
+bool
+python_target::has_execution (ptid_t ptid)
 {
-  target_object *target_obj = target_ops_to_target_obj (ops);
-  PyObject * self = (PyObject *) target_obj;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
 
-  struct cleanup *cleanup;
   int ret = 0;
 
-  cleanup = ensure_python_env (target_gdbarch (), current_language);
-  HasMethodOrReturnBeneath (self, to_has_execution, ops, ptid);
+  gdbpy_enter enter_py (target_gdbarch (), current_language);
+  if (!pytarget_has_op (has_execution))
+    return process_stratum_target::has_execution (ptid);
 
-  callback = PyObject_GetAttrString (self, "to_has_execution");
+  callback = PyObject_GetAttrString (owner, "has_execution");
   if (!callback)
     goto error;
 
-  arglist = Py_BuildValue ("((iii))", ptid.pid, ptid.lwp, ptid.tid);
+  arglist = Py_BuildValue ("((iii))", ptid.pid (), ptid.lwp (), ptid.tid ());
   if (!arglist)
     goto error;
 
@@ -623,7 +749,7 @@ py_target_to_has_execution (struct target_ops *ops, ptid_t ptid)
   if (!PyBool_Check (result))
     {
       PyErr_SetString (PyExc_RuntimeError,
-		       "to_has_exception callback must return True or False");
+		       "has_exception callback must return True or False");
       goto error;
     }
 
@@ -637,59 +763,123 @@ error:
   if (PyErr_Occurred ())
     {
       gdbpy_print_stack ();
-      error (_("Error in Python while executing to_fetch_registers callback."));
+      error (_("Error in Python while executing has_execution callback."));
     }
-
-  do_cleanups (cleanup);
 
   return ret;
 }
 
-static int
-default_true (struct target_ops *ops)
+int
+python_target::set_shortname (PyObject *name)
 {
-    return 1;
+  gdb::unique_xmalloc_ptr<char> name_holder;
+
+  if (registered) {
+    PyErr_SetString (PyExc_RuntimeError,
+		     _("Cannot set name on registered Target."));
+    return -1;
+  }
+
+  name_holder = python_string_to_host_string (name);
+  if (!name_holder)
+    return -1;
+
+  _info.shortname = xstrdup (name_holder.get ());
+
+  return 0;
 }
 
-static void py_target_register_ops(struct target_ops * ops)
+int
+python_target::set_longname (PyObject *name)
 {
-    if (!ops->to_shortname)
-	ops->to_shortname = xstrdup (_("PythonTarget"));
+  gdb::unique_xmalloc_ptr<char> name_holder;
 
-    if (!ops->to_longname)
-	ops->to_longname = xstrdup (_("A Python defined target layer"));
+  if (registered) {
+    PyErr_SetString (PyExc_RuntimeError,
+		     _("Cannot set name on registered Target."));
+    return -1;
+  }
 
-    /* Python Wrapper Calls */
-    ops->to_xfer_partial = py_target_to_xfer_partial;
-    ops->to_thread_name = py_target_to_thread_name;
-    ops->to_extra_thread_info = py_target_to_extra_thread_info;
-    ops->to_update_thread_list = py_target_to_update_thread_list;
-    ops->to_thread_alive = py_target_to_thread_alive;
-    ops->to_pid_to_str = py_target_to_pid_to_str;
-    ops->to_fetch_registers = py_target_to_fetch_registers;
-    ops->to_has_execution = py_target_to_has_execution;
-    ops->to_store_registers = py_target_to_store_registers;
-    ops->to_prepare_to_store = py_target_to_prepare_to_store;
+  name_holder = python_string_to_host_string (name);
+  if (!name_holder)
+    return -1;
 
-    // This may be the only variable to specify as a parameter in __init__
-    ops->to_stratum = thread_stratum;
+  _info.longname = xstrdup (name_holder.get ());
 
-    /* Initialise Defaults */
-    ops->to_has_all_memory = default_child_has_all_memory;
-    ops->to_has_memory = default_child_has_memory;
-    ops->to_has_stack = default_child_has_stack;
-    ops->to_has_registers = default_child_has_registers;
-    default_true(ops);
-
-    ops->to_magic = OPS_MAGIC;
-
-    /* Install any remaining operations as delegators */
-    complete_target_initialization (ops);
-
-    push_target(ops);
+  return 0;
 }
 
+int
+python_target::set_docstring (PyObject *name)
+{
+  gdb::unique_xmalloc_ptr<char> name_holder;
 
+  if (registered) {
+    PyErr_SetString (PyExc_RuntimeError,
+		     _("Cannot set docstring on registered Target."));
+    return -1;
+  }
+
+  name_holder = python_string_to_host_string (name);
+  if (!name_holder)
+    return -1;
+
+  _info.doc = xstrdup (name_holder.get ());
+
+  return 0;
+}
+
+python_target *hacky_target;
+
+void
+pytarget_open (const char *args, int from_tty)
+{
+  hacky_target->open (args, from_tty);
+}
+
+void
+python_target::register_target (void)
+{
+  if (!_info.shortname)
+    {
+      PyErr_SetString (PyExc_RuntimeError,
+		       "Cannot register nameless target.");
+      return;
+    }
+
+  if (hacky_target) {
+      PyErr_SetString (PyExc_RuntimeError,
+		       "This implementation only supports one python target at a time");
+      return;
+  }
+
+  if (!_info.longname)
+    {
+      _info.longname = xstrdup (_info.shortname);
+    }
+
+  if (!_info.doc)
+    {
+      _info.doc = xstrdup (_info.longname);
+    }
+
+  hacky_target = this;
+  registered = true;
+
+  add_target (info (), pytarget_open, NULL);
+}
+
+void
+python_target::unregister_target (void)
+{
+  if (!registered)
+    error (_("Target is not registered."));
+  printf ("Unregistering...\n");
+  delete_target (info (), pytarget_open);
+  hacky_target = NULL;
+
+  registered = false;
+}
 
 
 /*****************************************************************************/
@@ -697,246 +887,199 @@ static void py_target_register_ops(struct target_ops * ops)
 /*****************************************************************************/
 
 static void
-target_dealloc (PyObject *self)
+target_dealloc (PyObject *owner)
 {
-  ENTRY();
+  pytarget_object *obj = (pytarget_object *)owner;
+  ENTRY ();
 
-  // Py_DECREF (((target_object *) self)->inf_obj);
+  delete obj->target_ops;
+  obj->target_ops = NULL;
+
+  // Py_DECREF (((pytarget_object *) owner)->inf_obj);
   // Decremement any references taken....
-  Py_TYPE (self)->tp_free (self);
+  Py_TYPE (owner)->tp_free (owner);
 
-  EXIT();
-}
-
-enum target_names {
-    TGT_NAME,
-    TGT_SHORTNAME,
-    TGT_LONGNAME,
-};
-
-static PyObject *
-tgt_py_get_name (PyObject *self, void * arg)
-{
-  enum target_names target_string = (enum target_names) arg;
-  target_object *target_obj = (target_object *) self;
-  struct target_ops *ops = &target_obj->ops;
-
-  PyObject *name;
-
-  const char *shortname;
-  const char *longname;
-  const char *noname = "None";
-
-  THPY_REQUIRE_VALID (target_obj);
-
-  shortname = ops->to_shortname;
-  longname = ops->to_longname;
-
-  if (shortname == NULL)
-    shortname = noname;
-
-  if (longname == NULL)
-    longname = noname;
-
-  switch (target_string)
-    {
-    default:
-    case TGT_NAME:
-	name = PyString_FromFormat ("%s (%s)", shortname, longname);
-	break;
-    case TGT_SHORTNAME:
-	name = PyString_FromString (shortname);
-	break;
-    case TGT_LONGNAME:
-	name = PyString_FromString (longname);
-	break;
-    }
-
-  return name;
+  EXIT ();
 }
 
 static int
-tgt_py_set_name (PyObject *self, PyObject *newvalue, void * arg)
+tgt_py_set_shortname (PyObject *owner, PyObject *name, void * arg)
 {
-  enum target_names target_string = (enum target_names) arg;
-  target_object *target_obj = (target_object *) self;
-  struct target_ops *ops = &target_obj->ops;
-  char *name = NULL;
-
-  THPY_REQUIRE_VALID_INT (target_obj);
-
-  try
-    {
-      /*
-       * GDB will raise an exception that we need to catch and raise as
-       * a Python exception.
-       * Python will raise an exception that we'll pass back to the caller.
-       */
-      name = python_string_to_host_string (newvalue);
-    }
-  catch (const gdb_exception &except)
-    {
-      GDB_PY_SET_HANDLE_EXCEPTION (except);
-    }
-
-  /* Needs to be outside of the TRY/CATCH block */
-  if (!name)
-    return -1;
-
-  switch (target_string)
-    {
-    default:
-    case TGT_NAME:
-	/* No Op */
-	break;
-    case TGT_SHORTNAME:
-	xfree ((void *)ops->to_shortname);
-	ops->to_shortname = name;
-	break;
-    case TGT_LONGNAME:
-	xfree ((void *)ops->to_longname);
-	ops->to_longname = name;
-	break;
-    }
-
-  return 0;
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return target_obj->target_ops->set_shortname (name);
 }
 
-static PyObject *target_getconst(PyObject *_self, void *_value)
+static int
+tgt_py_set_longname (PyObject *owner, PyObject *name, void * arg)
 {
-	return PyInt_FromLong((long)_value);
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return target_obj->target_ops->set_longname (name);
 }
 
+static int
+tgt_py_set_docstring (PyObject *owner, PyObject *name, void * arg)
+{
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return target_obj->target_ops->set_docstring (name);
+}
+
+static PyObject *
+tgt_py_get_name (PyObject *owner, void * arg)
+{
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return PyString_FromFormat ("%s (%s)",
+			      target_obj->target_ops->shortname (),
+			      target_obj->target_ops->longname ());
+}
+
+static PyObject *
+tgt_py_get_shortname (PyObject *owner, void * arg)
+{
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return PyString_FromString (target_obj->target_ops->shortname ());
+}
+
+static PyObject *
+tgt_py_get_longname (PyObject *owner, void * arg)
+{
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return PyString_FromString (target_obj->target_ops->longname ());
+}
+
+static PyObject *
+tgt_py_get_docstring (PyObject *owner, void * arg)
+{
+  pytarget_object *target_obj = (pytarget_object *) owner;
+  return PyString_FromString (target_obj->target_ops->info ().doc);
+}
+
+static PyObject *target_getconst (PyObject *_owner, void *_value)
+{
+	return PyInt_FromLong ((long)_value);
+}
 
 #define CONST_GET(x) {#x, target_getconst, NULL, #x, (void*)x}
 
-
-static PyGetSetDef target_object_getset[] =
+static gdb_PyGetSetDef pytarget_object_getset[] =
 {
-  { "name", tgt_py_get_name, NULL,
-    "The name of the target", (void*)TGT_NAME },
-  { "shortname", tgt_py_get_name, tgt_py_set_name,
-    "The shortname of the target", (void*)TGT_SHORTNAME },
-  { "longname", tgt_py_get_name, tgt_py_set_name,
-    "The longname of the target", (void*)TGT_LONGNAME },
-
+  { "name", tgt_py_get_name, NULL, "The name of the target", NULL },
+  { "shortname", tgt_py_get_shortname, tgt_py_set_shortname,
+    "The shortname of the target", NULL },
+  { "longname", tgt_py_get_longname, tgt_py_set_longname,
+    "The longname of the target", NULL },
+  { "docstring", tgt_py_get_docstring, tgt_py_set_docstring,
+    "The docstring of the target", NULL },
   { "stratum", NULL, NULL, "ID of the thread, as assigned by GDB.", NULL },
-CONST_GET(TARGET_OBJECT_AVR),
-CONST_GET(TARGET_OBJECT_SPU),
-CONST_GET(TARGET_OBJECT_MEMORY),
-CONST_GET(TARGET_OBJECT_RAW_MEMORY),
-CONST_GET(TARGET_OBJECT_STACK_MEMORY),
-CONST_GET(TARGET_OBJECT_CODE_MEMORY),
-CONST_GET(TARGET_OBJECT_UNWIND_TABLE),
-CONST_GET(TARGET_OBJECT_AUXV),
-CONST_GET(TARGET_OBJECT_WCOOKIE),
-CONST_GET(TARGET_OBJECT_MEMORY_MAP),
-CONST_GET(TARGET_OBJECT_FLASH),
-CONST_GET(TARGET_OBJECT_AVAILABLE_FEATURES),
-CONST_GET(TARGET_OBJECT_LIBRARIES),
-CONST_GET(TARGET_OBJECT_LIBRARIES_SVR4),
-CONST_GET(TARGET_OBJECT_LIBRARIES_AIX),
-CONST_GET(TARGET_OBJECT_OSDATA),
-CONST_GET(TARGET_OBJECT_SIGNAL_INFO),
-CONST_GET(TARGET_OBJECT_THREADS),
-CONST_GET(TARGET_OBJECT_STATIC_TRACE_DATA),
-CONST_GET(TARGET_OBJECT_HPUX_UREGS),
-CONST_GET(TARGET_OBJECT_HPUX_SOLIB_GOT),
-CONST_GET(TARGET_OBJECT_TRACEFRAME_INFO),
-CONST_GET(TARGET_OBJECT_FDPIC),
-CONST_GET(TARGET_OBJECT_DARWIN_DYLD_INFO),
-CONST_GET(TARGET_OBJECT_OPENVMS_UIB),
-CONST_GET(TARGET_OBJECT_BTRACE),
-CONST_GET(TARGET_OBJECT_BTRACE_CONF),
-CONST_GET(TARGET_OBJECT_EXEC_FILE),
+  CONST_GET(TARGET_OBJECT_AVR),
+  CONST_GET(TARGET_OBJECT_SPU),
+  CONST_GET(TARGET_OBJECT_MEMORY),
+  CONST_GET(TARGET_OBJECT_RAW_MEMORY),
+  CONST_GET(TARGET_OBJECT_STACK_MEMORY),
+  CONST_GET(TARGET_OBJECT_CODE_MEMORY),
+  CONST_GET(TARGET_OBJECT_UNWIND_TABLE),
+  CONST_GET(TARGET_OBJECT_AUXV),
+  CONST_GET(TARGET_OBJECT_WCOOKIE),
+  CONST_GET(TARGET_OBJECT_MEMORY_MAP),
+  CONST_GET(TARGET_OBJECT_FLASH),
+  CONST_GET(TARGET_OBJECT_AVAILABLE_FEATURES),
+  CONST_GET(TARGET_OBJECT_LIBRARIES),
+  CONST_GET(TARGET_OBJECT_LIBRARIES_SVR4),
+  CONST_GET(TARGET_OBJECT_LIBRARIES_AIX),
+  CONST_GET(TARGET_OBJECT_OSDATA),
+  CONST_GET(TARGET_OBJECT_SIGNAL_INFO),
+  CONST_GET(TARGET_OBJECT_THREADS),
+  CONST_GET(TARGET_OBJECT_STATIC_TRACE_DATA),
+  CONST_GET(TARGET_OBJECT_TRACEFRAME_INFO),
+  CONST_GET(TARGET_OBJECT_FDPIC),
+  CONST_GET(TARGET_OBJECT_DARWIN_DYLD_INFO),
+  CONST_GET(TARGET_OBJECT_OPENVMS_UIB),
+  CONST_GET(TARGET_OBJECT_BTRACE),
+  CONST_GET(TARGET_OBJECT_BTRACE_CONF),
+  CONST_GET(TARGET_OBJECT_EXEC_FILE),
+  CONST_GET(TARGET_OBJECT_FREEBSD_VMMAP),
+  CONST_GET(TARGET_OBJECT_FREEBSD_PS_STRINGS),
+
   { NULL }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* Base Delegate Implementation of gdb.Target.to_thread_name */
-
-
-/* We will potentially need one of these for each of the Target API's ...
- * The target-delegate.c module is autogenerated, and I suspect we
- * could do the same here!
- */
 
 static PyObject *
-tgtpy_default_to_thread_name (PyObject *self, PyObject *args)
+pytarget_register_target(PyObject *object, PyObject *unused)
 {
-  target_object *target_obj = (target_object *) self;
-  PyObject * ThreadName;
+  pytarget_object *owner = (pytarget_object *) object;
 
-  ENTRY();
+  PyErr_Clear();
+  owner->target_ops->register_target();
 
-  ThreadName = PyString_FromString ("NoThreadName");
+  if (PyErr_Occurred ())
+    return NULL;
 
-  EXIT();
-
-  return ThreadName;
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
-static PyMethodDef target_object_methods[] =
+static PyObject *
+pytarget_unregister_target (PyObject *object, PyObject *unused)
 {
-  { "to_thread_name_int", tgtpy_default_to_thread_name, METH_VARARGS | METH_KEYWORDS,
-    "to_thread_name (thread_info) -> String.\n\
-Return string name representation of the given thread." },
+  pytarget_object *owner = (pytarget_object *) object;
+
+  try
+    {
+      owner->target_ops->unregister_target ();
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+
+  Py_INCREF (Py_None);
+  return Py_None;
+}
 
 
-
+static PyMethodDef pytarget_object_methods[] =
+{
+  { "register", pytarget_register_target, METH_NOARGS,
+    "register ()\nRegister this target for use with GDB." },
+  { "unregister", pytarget_unregister_target, METH_NOARGS,
+    "unregister ()\nUnregister this target for use with GDB." },
   { NULL }
 };
 
 
-static int
-target_init (PyObject *self, PyObject *args, PyObject *kw)
+static PyObject *
+pytarget_new (PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    target_object *target_obj = (target_object *) self;
-    struct target_ops *ops = &target_obj->ops;
+  ENTRY ();
 
-    ENTRY();
+  PyObject *self = type->tp_alloc (type, 0);
 
-    try
-      {
-	py_target_register_ops (ops);
-	init_thread_list ();
-      }
-    catch (const gdb_exception &except)
-      {
-	GDB_PY_SET_HANDLE_EXCEPTION (except);
-      }
+  if (self)
+    {
+      try
+	{
+	  pytarget_object *target_obj = (pytarget_object *)self;
+	  target_obj->target_ops = new python_target (self);
+	}
+      catch (const gdb_exception &except)
+	{
+	  Py_DECREF (self);
+	  GDB_PY_HANDLE_EXCEPTION (except);
+	}
+    }
 
-    /* We have registered our structure on the target stack
-     * Our object needs to persist while it is registered
-     */
-    Py_INCREF (self);
+  EXIT ();
 
-    EXIT();
-
-    return 0;
+  return self;
 }
-
-
 
 int
 gdbpy_initialize_target (void)
 {
 
-  ENTRY();
+  ENTRY ();
 
   /* Allow us to create instantiations of this class ... */
-  target_object_type.tp_new = PyType_GenericNew;
+  target_object_type.tp_new = pytarget_new;
 
   if (PyType_Ready (&target_object_type) < 0)
     return -1;
@@ -965,7 +1108,7 @@ gdbpy_initialize_target (void)
   return gdb_pymodule_addobject (gdb_module, "Target",
 				 (PyObject *) &target_object_type);
 fail:
-  gdbpy_print_stack();
+  gdbpy_print_stack ();
   EXIT ();
   return -1;
 }
@@ -979,7 +1122,7 @@ PyTypeObject target_object_type =
 {
   PyVarObject_HEAD_INIT (NULL, 0)
   "gdb.Target",			  /*tp_name*/
-  sizeof (target_object),	  /*tp_basicsize*/
+  sizeof (pytarget_object),	  /*tp_basicsize*/
   0,				  /*tp_itemsize*/
   target_dealloc,		  /*tp_dealloc*/
   0,				  /*tp_print*/
@@ -1004,14 +1147,15 @@ PyTypeObject target_object_type =
   0,				  /* tp_weaklistoffset */
   0,				  /* tp_iter */
   0,				  /* tp_iternext */
-  target_object_methods,	  /* tp_methods */
+  pytarget_object_methods,	  /* tp_methods */
   0,				  /* tp_members */
-  target_object_getset,		  /* tp_getset */
+  pytarget_object_getset,		  /* tp_getset */
   0,				  /* tp_base */
   0,				  /* tp_dict */
   0,				  /* tp_descr_get */
   0,				  /* tp_descr_set */
   0,				  /* tp_dictoffset */
-  target_init,			  /* tp_init */
-  0				  /* tp_alloc */
+  0,				  /* tp_init */
+  0,				  /* tp_alloc */
+  pytarget_new,			  /* tp_new */
 };

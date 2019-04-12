@@ -87,7 +87,6 @@ static const struct objfile_data *msympy_objfile_data_key;
 static PyObject *
 msympy_str (PyObject *self)
 {
-  PyObject *result;
   struct minimal_symbol *minsym = NULL;
 
   MSYMPY_REQUIRE_VALID (self, minsym);
@@ -238,7 +237,6 @@ msympy_is_data (PyObject *self, PyObject *args)
 static PyObject *
 msympy_value (PyObject *self, PyObject *args)
 {
-  minsym_object *minsym_obj = (minsym_object *)self;
   struct minimal_symbol *minsym = NULL;
   struct value *value = NULL;
 
@@ -312,15 +310,14 @@ msympy_dealloc (PyObject *obj)
 PyObject *
 gdbpy_lookup_minimal_symbol (PyObject *self, PyObject *args, PyObject *kw)
 {
-  int domain = VAR_DOMAIN;
   const char *name, *sfile = NULL;
   struct objfile *objfile = NULL;
-  static char *keywords[] = { "name", "sfile", "objfile", NULL };
+  static const char *keywords[] = { "name", "sfile", "objfile", NULL };
   struct bound_minimal_symbol bound_minsym = {};
   PyObject *msym_obj = NULL, *sfile_obj = NULL, *objfile_obj = NULL;
 
-  if (!PyArg_ParseTupleAndKeywords (args, kw, "s|OO", keywords, &name,
-				    &sfile_obj, &objfile_obj))
+  if (!gdb_PyArg_ParseTupleAndKeywords (args, kw, "s|OO", keywords, &name,
+					&sfile_obj, &objfile_obj))
     return NULL;
 
   if (sfile_obj && sfile_obj != Py_None)
@@ -361,8 +358,6 @@ del_objfile_msymbols (struct objfile *objfile, void *datum)
   minsym_object *obj = (minsym_object *) datum;
   while (obj)
     {
-      minsym_object *next = obj->next;
-
       obj->bound.minsym = NULL;
       obj->bound.objfile = NULL;
       obj->next = NULL;
@@ -407,7 +402,7 @@ gdbpy_initialize_minsymbols (void)
 
 
 
-static PyGetSetDef minsym_object_getset[] = {
+static gdb_PyGetSetDef minsym_object_getset[] = {
   { "name", msympy_get_name, NULL,
     "Name of the minimal symbol, as it appears in the source code.", NULL },
   { "linkage_name", msympy_get_linkage_name, NULL,

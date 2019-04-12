@@ -20,6 +20,7 @@
 #include "defs.h"
 #include "gdbthread.h"
 #include "inferior.h"
+#include "py-inferior.h"
 #include "python-internal.h"
 
 extern PyTypeObject thread_object_type
@@ -333,11 +334,15 @@ thpy_get_registers (PyObject *self, void *closure)
     return PyDictProxy_New(d);
 }
 
-void
-thpy_private_dtor (struct private_thread_info *info)
+static infpy_thread_info *
+get_infpy_thread_info(thread_info *thread)
 {
-  PyObject *obj = (PyObject *)info;
-  Py_DECREF(obj);
+  gdb_assert (thread != NULL);
+
+  if (thread->priv == NULL)
+    thread->priv.reset(new infpy_thread_info);
+
+  return static_cast<infpy_thread_info *> (thread->priv.get());
 }
 
 static PyObject *
@@ -346,9 +351,9 @@ thpy_get_info (PyObject *self, void *closure)
   thread_object *obj = (thread_object *) self;
   PyObject *info;
   THPY_REQUIRE_VALID(obj);
-  info = (PyObject *)obj->thread->priv;
+  info = get_infpy_thread_info(obj->thread)->object;
 
-  if (obj->thread->private_dtor != thpy_private_dtor)
+  if (typeid(info) != typeid(infpy_thread_info))
     {
       PyErr_SetString(PyExc_TypeError, "thread private data is not PyObject");
       return NULL;
@@ -377,7 +382,6 @@ static int
 thpy_set_executing (PyObject *self, PyObject *newvalue, void *ignore)
 {
   thread_object *thread_obj = (thread_object *) self;
-  PyObject *value;
 
   if (!thread_obj->thread)
     {

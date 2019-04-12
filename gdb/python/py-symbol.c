@@ -241,7 +241,6 @@ static PyObject *
 sympy_section (PyObject *self, void *closure)
 {
   struct symbol *symbol = NULL;
-  PyObject *section_obj;
   struct obj_section *section;
   const char *name;
 

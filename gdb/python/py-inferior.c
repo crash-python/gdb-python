@@ -29,6 +29,7 @@
 #include "common/gdb_signals.h"
 #include "py-event.h"
 #include "py-stopevent.h"
+#include "py-inferior.h"
 
 struct threadlist_entry {
   thread_object *thread_obj;
@@ -419,33 +420,37 @@ infpy_new_thread (PyObject *self, PyObject *args)
 {
   struct inferior *inf;
   struct thread_info *info = NULL;
-  ptid_t ptid;
-  PyObject *priv = Py_None;
+  int pid;
+  long lwp;
+  long tid;
+  PyObject *pypriv = Py_None;
 
   if (!PyArg_ParseTuple(args, "(ill)|O:ptid",
-      &ptid.pid, &ptid.lwp, &ptid.tid, &priv))
+      &pid, &lwp, &tid, &pypriv))
     return NULL;
 
   inf = current_inferior();
-  if (inf->pid != 0 && inf->pid != ptid.pid)
+  if (inf->pid != 0 && inf->pid != pid)
     {
-      inf = find_inferior_pid (ptid.pid);
+      inf = find_inferior_pid (pid);
       if (!inf)
 	inf = current_inferior();
     }
-  inferior_appeared(inf, ptid.pid);
+  inferior_appeared(inf, pid);
 
   try
     {
-      info = add_thread_with_info(ptid, (struct private_thread_info *)priv);
+      ptid_t ptid(pid, lwp, tid);
+      infpy_thread_info *priv = new infpy_thread_info;
+      Py_INCREF(pypriv);
+      priv->object = pypriv;
+
+      info = add_thread_with_info(ptid, priv);
     }
   catch (const gdb_exception &except)
     {
       GDB_PY_HANDLE_EXCEPTION(except);
     }
-
-  Py_INCREF(priv);
-  info->private_dtor = thpy_private_dtor;
 
   return (PyObject *)create_thread_object(info);
 }
@@ -539,7 +544,6 @@ static int
 infpy_set_executing (PyObject *self, PyObject *newvalue, void *ignore)
 {
   inferior_object *inf = (inferior_object *) self;
-  PyObject *value;
 
   if (!inf->inferior)
     {
@@ -555,7 +559,7 @@ infpy_set_executing (PyObject *self, PyObject *newvalue, void *ignore)
 
   try
     {
-      ptid_t ptid = {inf->inferior->pid, 0, 0};
+      ptid_t ptid(inf->inferior->pid, 0, 0);
       set_executing (ptid, newvalue == Py_True);
     }
   catch (const gdb_exception &except)
