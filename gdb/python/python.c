@@ -1681,6 +1681,7 @@ do_start_initialization ()
       || gdbpy_initialize_lazy_string () < 0
       || gdbpy_initialize_linetable () < 0
       || gdbpy_initialize_thread () < 0
+      || gdbpy_initialize_target() < 0
       || gdbpy_initialize_inferior () < 0
       || gdbpy_initialize_eventregistry () < 0
       || gdbpy_initialize_py_events () < 0
@@ -2043,6 +2044,10 @@ or None if not set." },
   { "set_convenience_variable", gdbpy_set_convenience_variable, METH_VARARGS,
     "convenience_variable (NAME, VALUE) -> None.\n\
 Set the value of the convenience variable $NAME." },
+
+  { "current_target", gdbpy_current_target, METH_NOARGS,
+    "current_target () -> gdb.Target.\n\
+Return the current target object." },
 
   {NULL, NULL, 0, NULL}
 };

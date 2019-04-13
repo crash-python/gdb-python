@@ -288,6 +288,20 @@ gdb_PyArg_ParseTupleAndKeywords (PyObject *args, PyObject *kw,
   return res;
 }
 
+static inline PyObject *
+gdb_PyObject_CallFunction (PyObject *callable, const char *format, ...)
+{
+  va_list ap;
+  PyObject *res;
+
+  va_start (ap, format);
+  res = PyObject_CallFunction (callable, const_cast<char *>(format), ap);
+  va_end (ap);
+
+  return res;
+}
+
+
 /* In order to be able to parse symtab_and_line_to_sal_object function
    a real symtab_and_line structure is needed.  */
 #include "symtab.h"
@@ -455,6 +469,7 @@ PyObject *gdbpy_inferiors (PyObject *unused, PyObject *unused2);
 PyObject *gdbpy_create_ptid_object (ptid_t ptid);
 PyObject *gdbpy_selected_thread (PyObject *self, PyObject *args);
 PyObject *gdbpy_selected_inferior (PyObject *self, PyObject *args);
+PyObject *gdbpy_current_target (PyObject *self, PyObject *args);
 PyObject *gdbpy_string_to_argv (PyObject *self, PyObject *args);
 PyObject *gdbpy_parameter_value (enum var_types type, void *var);
 char *gdbpy_parse_command_name (const char *name,
@@ -543,8 +558,10 @@ int gdbpy_initialize_linetable (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_parameters (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
-int gdbpy_initialize_thread (void)
+int gdbpy_initialize_target (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
+int gdbpy_initialize_thread (void)
+CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_inferior (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_eventregistry (void)

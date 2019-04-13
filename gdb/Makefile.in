@@ -402,6 +402,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-stopevent.c \
 	python/py-symbol.c \
 	python/py-symtab.c \
+	python/py-target.c \
 	python/py-threadevent.c \
 	python/py-type.c \
 	python/py-unwind.c \
