@@ -19,6 +19,8 @@ import sys
 import _gdb
 from contextlib import contextmanager
 
+from typing import Dict, Optional, Union
+
 # Python 3 moved "reload"
 if sys.version_info >= (3, 4):
     from importlib import reload
@@ -248,3 +250,12 @@ def with_parameter(name, value):
         yield None
     finally:
         set_parameter(name, old_value)
+
+RegisterNameType = Union[RegisterDescriptor, str]
+RegisterValueType = Optional[Union[int, bytearray]]
+RegisterCollectionType = Dict[RegisterNameType, RegisterValueType]
+
+class Target(_gdb.Target):
+    def open(self, argstring: str, from_tty: bool) -> None:
+        self.prepare_open(from_tty)
+        self.push_target()

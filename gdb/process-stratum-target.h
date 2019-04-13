@@ -32,7 +32,7 @@ class process_stratum_target : public target_ops
 public:
   ~process_stratum_target () override = 0;
 
-  strata stratum () const final override { return process_stratum; }
+  strata stratum () const override { return process_stratum; }
 
   /* Return a string representation of this target's open connection.
      This string is used to distinguish different instances of a given

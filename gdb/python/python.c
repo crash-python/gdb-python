@@ -1976,6 +1976,7 @@ do_start_initialization ()
       || gdbpy_initialize_lazy_string () < 0
       || gdbpy_initialize_linetable () < 0
       || gdbpy_initialize_thread () < 0
+      || gdbpy_initialize_target() < 0
       || gdbpy_initialize_inferior () < 0
       || gdbpy_initialize_eventregistry () < 0
       || gdbpy_initialize_py_events () < 0
@@ -2449,6 +2450,10 @@ Return a list of all the architecture names GDB understands." },
   { "connections", gdbpy_connections, METH_NOARGS,
     "connections () -> List.\n\
 Return a list of gdb.TargetConnection objects." },
+
+  { "current_target", gdbpy_current_target, METH_NOARGS,
+    "current_target () -> gdb.Target.\n\
+Return the current target object." },
 
   {NULL, NULL, 0, NULL}
 };

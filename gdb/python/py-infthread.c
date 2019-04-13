@@ -51,7 +51,6 @@ create_thread_object (struct thread_info *tp)
 
   thread_obj->thread = tp;
   thread_obj->inf_obj = (PyObject *) inf_obj.release ();
-
   return thread_obj;
 }
 
