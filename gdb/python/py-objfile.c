@@ -363,6 +363,24 @@ objfpy_get_xmethods (PyObject *o, void *ignore)
   return self->xmethods;
 }
 
+static PyObject *
+objfpy_get_architecture (PyObject *o, void *ignore)
+{
+  objfile_object *self = (objfile_object *) o;
+  struct gdbarch *gdbarch = NULL;
+
+  try
+    {
+      gdbarch = get_objfile_arch(self->objfile);
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+
+  return gdbarch_to_arch_object (gdbarch);
+}
+
 /* Set the 'type_printers' attribute.  */
 
 static int
@@ -689,6 +707,8 @@ static gdb_PyGetSetDef objfile_getset[] =
     "Type printers.", NULL },
   { "xmethods", objfpy_get_xmethods, NULL,
     "Debug methods.", NULL },
+  { "architecture", objfpy_get_architecture, NULL, "Objfile Architecture",
+    NULL },
   { NULL }
 };
 
