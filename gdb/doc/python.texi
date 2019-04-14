@@ -1042,8 +1042,8 @@ module:
 @defun gdb.lookup_type (name @r{[}, block@r{]})
 This function looks up a type by its @var{name}, which must be a string.
 
-If @var{block} is given, then @var{name} is looked up in that scope.
-Otherwise, it is searched for globally.
+If @var{block} is given as a @code{gdb.Block}, then @var{name} is looked up in that scope.  Otherwise, if it is absent or is @code{None}, it is
+searched for globally.
 
 Ordinarily, this function will return an instance of @code{gdb.Type}.
 If the named type cannot be found, it will throw an exception.
