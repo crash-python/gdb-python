@@ -4410,6 +4410,13 @@ The @code{frame_filters} attribute is a dictionary of frame filter
 objects.  @xref{Frame Filter API}, for more information.
 @end defvar
 
+@defvar Objfile.architecture
+The @code{gdb.Architecture} of the objfile.
+
+The value is @code{None} if the objfile is no longer valid.
+See the @code{gdb.Objfile.is_valid} method, described below.
+@end defvar
+
 One may add arbitrary attributes to @code{gdb.Objfile} objects
 in the usual Python way.
 This is useful if, for example, one needs to do some extra record keeping
