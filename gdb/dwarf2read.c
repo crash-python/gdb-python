@@ -16485,6 +16485,8 @@ process_enumeration_scope (struct die_info *die, struct dwarf2_cu *cu)
 			xrealloc (fields,
 				  (num_fields + DW_FIELD_ALLOC_CHUNK)
 				  * sizeof (struct field));
+		      memset (fields + num_fields, 0,
+			      DW_FIELD_ALLOC_CHUNK * sizeof(struct field));
 		    }
 
 		  FIELD_NAME (fields[num_fields]) = sym->linkage_name ();
