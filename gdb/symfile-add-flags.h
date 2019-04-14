@@ -44,6 +44,10 @@ enum symfile_add_flag : unsigned
 
     /* The new objfile should be marked OBJF_NOT_FILENAME.  */
     SYMFILE_NOT_FILENAME = 1 << 5,
+
+    /* Do not execute the new objfile callback event in
+       symbol_file_add_with_addrs.  */
+    SYMFILE_NO_EVENT = 1 << 6,
  };
 
 DEF_ENUM_FLAGS_TYPE (enum symfile_add_flag, symfile_add_flags);
