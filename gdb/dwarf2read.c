@@ -17294,7 +17294,7 @@ read_tag_string_type (struct die_info *die, struct dwarf2_cu *cu)
 		   operand.  */
 		DW_OP_deref_size,
 		/* Operand for DW_OP_deref_size.  */
-		DW_UNSND(byte_size) };
+		(gdb_byte)DW_UNSND(byte_size) };
 
 	      if (!attr_to_dynamic_prop (attr, die, cu, &high, append_ops,
 					 ARRAY_SIZE(append_ops)))
