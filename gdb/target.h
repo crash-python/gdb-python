@@ -2330,6 +2330,9 @@ extern void add_target (const target_info &info,
 			target_open_ftype *func,
 			completer_ftype *completer = NULL);
 
+
+extern void delete_target (const target_info &t, target_open_ftype *func);
+
 /* Adds a command ALIAS for the target described by INFO and marks it
    deprecated.  This is useful for maintaining backwards compatibility
    when renaming targets.  */

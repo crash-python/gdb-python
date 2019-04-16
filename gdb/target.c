@@ -287,6 +287,23 @@ information on the arguments for a particular protocol, type\n\
     set_cmd_completer (c, completer);
 }
 
+void
+delete_target (const target_info &t, target_open_ftype *func)
+{
+  struct cmd_list_element *c = NULL;
+  auto &func_slot = target_factories[&t];
+  if (target_factories[&t] != func)
+    {
+      internal_error (__FILE__, __LINE__,
+		      _("target to be deleted was not added (\"%s\")."),
+		      t.shortname);
+    }
+  func_slot = nullptr;
+
+  c = add_alias_cmd (t.shortname, c, no_class, 0, &targetlist);
+  gdb_assert (c == NULL);
+}
+
 /* See target.h.  */
 
 void
