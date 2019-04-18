@@ -1,0 +1,5 @@
+set auto-load safe-path /
+file /media/build//x86_64/linux-4.12-xfs-review-default/vmlinux
+source target.py
+target kdumpfile /var/crash/2019-04-17-17:05/vmcore
+print &modules == modules.next
