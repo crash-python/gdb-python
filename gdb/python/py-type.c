@@ -1019,7 +1019,10 @@ typy_richcompare (PyObject *self, PyObject *other, int op)
     {
       try
 	{
+	  result = types_equal (type1, type2);
+#if 0
 	  result = types_deeply_equal (type1, type2);
+#endif
 	}
       catch (const gdb_exception &except)
 	{
