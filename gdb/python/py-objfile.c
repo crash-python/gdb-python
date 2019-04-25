@@ -426,6 +426,25 @@ objfpy_is_valid (PyObject *self, PyObject *args)
   Py_RETURN_TRUE;
 }
 
+/* Implementation of gdb.Objfile.is_has_symbols (self) -> Boolean.
+   Returns True if this object file has even partial symbols available.  */
+
+static PyObject *
+objfpy_has_symbols (PyObject *self, PyObject *args)
+{
+  objfile_object *obj = (objfile_object *) self;
+
+  OBJFPY_REQUIRE_VALID (obj);
+
+  if (objfile_has_symbols (obj->objfile))
+    {
+      Py_RETURN_TRUE;
+    }
+
+  Py_RETURN_FALSE;
+}
+
+
 struct objfile *
 objfpy_object_to_objfile(PyObject *self)
 {
@@ -742,6 +761,9 @@ static PyMethodDef objfile_object_methods[] =
   { "is_valid", objfpy_is_valid, METH_NOARGS,
     "is_valid () -> Boolean.\n\
 Return true if this object file is valid, false if not." },
+  { "has_symbols", objfpy_has_symbols, METH_NOARGS,
+    "has_symbols () -> Boolean.\n\
+Return true if this object file has symbols associated with it." },
 
   { "add_separate_debug_file", (PyCFunction) objfpy_add_separate_debug_file,
     METH_VARARGS | METH_KEYWORDS,

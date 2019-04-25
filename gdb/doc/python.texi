@@ -4496,6 +4496,11 @@ Like @code{Objfile.lookup_global_symbol}, but searches for a global
 symbol with static linkage named @var{name} in this objfile.
 @end defun
 
+@defun Objfile.has_symbols ()
+Returns @code{True} if the @code{gdb.Objfile} has a symbol table attached,
+@code{False} if not.
+@end defun
+
 @node Frames In Python
 @subsubsection Accessing inferior stack frames from Python
 
