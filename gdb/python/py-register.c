@@ -152,7 +152,7 @@ static int
 write_register (struct regcache *regcache, int reg, const void *data)
 {
   struct gdbarch *gdbarch = target_gdbarch ();
-  if (target_has_execution && reg == gdbarch_pc_regnum (gdbarch))
+  if (target_has_execution && reg == gdbarch_pc_regnum (gdbarch) && data)
     {
       CORE_ADDR pc = *(CORE_ADDR *)data;
       regcache_write_pc (regcache, pc);
