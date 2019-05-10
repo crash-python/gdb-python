@@ -196,7 +196,6 @@ python_target::open (const char *argstring, int from_tty)
 
   if (!stacked)
     {
-      printf("Not stacked\n");
       target_preopen (from_tty);
       reopen_exec_file ();
     }
