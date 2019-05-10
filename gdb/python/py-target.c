@@ -159,6 +159,7 @@ python_target::open (const char *argstring, int from_tty)
   PyObject *callback = NULL;
   PyObject *arglist = NULL;
   PyObject *ret = NULL;
+  bool stacked = false;
 
   gdbpy_enter enter_py (target_gdbarch (), current_language);
 
@@ -172,9 +173,32 @@ python_target::open (const char *argstring, int from_tty)
 	error (_("Refusing to replace other target."));
     }
 
-  target_preopen (from_tty);
+  if (pytarget_has_op(stacked_target))
+    {
+      callback = PyObject_GetAttrString (owner, "stacked_target");
+      if (!callback)
+	goto error;
 
-  reopen_exec_file ();
+      ret = gdb_PyObject_CallFunction (callback, "()", NULL);
+      if (!ret)
+	goto error;
+
+      if (!PyBool_Check (ret))
+	{
+	  PyErr_SetString (PyExc_RuntimeError,
+			   "stacked_target callback must return True or False");
+	  goto error;
+	}
+	stacked = ret == Py_True;
+	Py_XDECREF (ret);
+	ret = NULL;
+    }
+
+  if (!stacked)
+    {
+      target_preopen (from_tty);
+      reopen_exec_file ();
+    }
   registers_changed ();
 
   callback = PyObject_GetAttrString (owner, "open");
