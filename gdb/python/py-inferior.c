@@ -481,6 +481,44 @@ infpy_appeared (PyObject *self, PyObject *args)
 }
 
 static PyObject *
+infpy_delete_thread (PyObject *self, PyObject *args)
+{
+  struct thread_info *info = NULL;
+  int pid;
+  long lwp;
+  long tid;
+
+  if (!PyArg_ParseTuple(args, "(ill)|O:ptid", &pid, &lwp, &tid))
+    return NULL;
+
+  try
+    {
+      ptid_t ptid(pid, lwp, tid);
+
+      info = find_thread_ptid(ptid);
+      if (!info)
+	{
+	  PyErr_SetString (PyExc_RuntimeError, _("Thread does not exist."));
+	  return NULL;
+	}
+
+
+      delete_thread_silent(info);
+      if (ptid == inferior_ptid)
+	{
+	  inferior_ptid = null_ptid;
+	}
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION(except);
+    }
+
+  Py_RETURN_NONE;
+}
+
+
+static PyObject *
 infpy_get_num (PyObject *self, void *closure)
 {
   inferior_object *inf = (inferior_object *) self;
@@ -1063,7 +1101,9 @@ Return true if this inferior is valid, false if not." },
   { "threads", infpy_threads, METH_NOARGS,
     "Return all the threads of this inferior." },
   { "new_thread", infpy_new_thread, METH_VARARGS,
-    "Associates a new thread with this inferior with optional object(s)" },
+    "Adds a new thread to this inferior with optional object(s)" },
+  { "delete_thread", infpy_delete_thread, METH_VARARGS,
+    "Deletes a thread from this inferior" },
   { "appeared", infpy_appeared, METH_VARARGS,
     "Informs gdb that a PID has appeared for this inferior." },
   { "read_memory", (PyCFunction) infpy_read_memory,
