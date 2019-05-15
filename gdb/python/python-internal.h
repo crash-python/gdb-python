@@ -775,6 +775,7 @@ extern PyObject *gdbpy_value_cst;
 extern PyObject *gdbpy_gdb_error;
 extern PyObject *gdbpy_gdb_memory_error;
 extern PyObject *gdbpy_gdberror_exc;
+extern PyObject *gdbpy_gdb_not_available_error;
 
 extern void gdbpy_convert_exception (const struct gdb_exception &)
     CPYCHECKER_SETS_EXCEPTION;

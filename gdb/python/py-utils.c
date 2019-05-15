@@ -237,6 +237,8 @@ gdbpy_convert_exception (const struct gdb_exception &exception)
     exc_class = PyExc_KeyboardInterrupt;
   else if (exception.error == MEMORY_ERROR)
     exc_class = gdbpy_gdb_memory_error;
+  else if (exception.error == NOT_AVAILABLE_ERROR)
+    exc_class = gdbpy_gdb_not_available_error;
   else
     exc_class = gdbpy_gdb_error;
 

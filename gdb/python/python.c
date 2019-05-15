@@ -130,6 +130,9 @@ PyObject *gdbpy_gdb_error;
 /* The `gdb.MemoryError' exception.  */
 PyObject *gdbpy_gdb_memory_error;
 
+/* The `gdb.NotAvailableError' exception.  */
+PyObject *gdbpy_gdb_not_available_error;
+
 static script_sourcer_func gdbpy_source_script;
 static objfile_script_sourcer_func gdbpy_source_objfile_script;
 static objfile_script_executor_func gdbpy_execute_objfile_script;
@@ -1650,6 +1653,13 @@ do_start_initialization ()
   if (gdbpy_gdb_memory_error == NULL
       || gdb_pymodule_addobject (gdb_module, "MemoryError",
 				 gdbpy_gdb_memory_error) < 0)
+    return false;
+
+  gdbpy_gdb_not_available_error = PyErr_NewException ("gdb.NotAvailableError",
+					       gdbpy_gdb_error, NULL);
+  if (gdbpy_gdb_not_available_error == NULL
+      || gdb_pymodule_addobject (gdb_module, "NotAvailableError",
+				 gdbpy_gdb_not_available_error) < 0)
     return false;
 
   gdbpy_gdberror_exc = PyErr_NewException ("gdb.GdbError", NULL, NULL);
