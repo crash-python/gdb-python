@@ -1470,12 +1470,15 @@ stab_start_class_type (void *p, const char *tag, unsigned int id, bfd_boolean st
 	  vtable = (char *) xmalloc (20);
 	  sprintf (vtable, "~%%%ld", info->type_stack->index);
 	}
-      else
+      else if (vstring)
 	{
 	  vtable = (char *) xmalloc (strlen (vstring) + 3);
 	  sprintf (vtable, "~%%%s", vstring);
 	  free (vstring);
 	}
+      else
+	abort ();
+
 
       info->type_stack->vtable = vtable;
     }
