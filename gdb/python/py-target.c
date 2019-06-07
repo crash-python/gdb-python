@@ -646,11 +646,13 @@ error:
 void
 python_target::fetch_registers (struct regcache *regcache, int reg)
 {
+  thread_info *info;
   PyObject *arglist  = NULL;
   PyObject *result   = NULL;
   PyObject *callback = NULL;
   PyObject *reg_obj  = NULL;
   PyObject *thread = NULL;
+  gdbpy_ref<> thread_ref;
 
   gdbpy_enter enter_py (target_gdbarch (), current_language);
 
@@ -663,15 +665,32 @@ python_target::fetch_registers (struct regcache *regcache, int reg)
   if (!callback)
     goto error;
 
-  thread = gdbpy_selected_thread (NULL, NULL);
-  if (!thread)
+  info = find_thread_ptid (regcache->ptid ());
+  if (!info)
+    {
+      PyErr_SetString(PyExc_RuntimeError, "No such ptid for registers.");
+      goto error;
+    }
+
+  thread_ref = thread_to_thread_object (info);
+  if (thread_ref == NULL)
     goto error;
 
-  reg_obj = register_to_register_object ((thread_object *) thread, reg);
-  if (!reg_obj)
-    goto error;
+  thread = thread_ref.release();
 
-  arglist = Py_BuildValue ("(O)", reg_obj);
+  if (reg != -1)
+    {
+      reg_obj = register_to_register_object ((thread_object *) thread, reg);
+      if (!reg_obj)
+	  goto error;
+    }
+  else
+    {
+      reg_obj = Py_None;
+      Py_INCREF(reg_obj);
+    }
+
+  arglist = Py_BuildValue ("(OO)", thread, reg_obj);
   if (!arglist)
     goto error;
 
@@ -680,6 +699,7 @@ python_target::fetch_registers (struct regcache *regcache, int reg)
     goto error;
 
 error:
+  Py_XDECREF (reg_obj);
   Py_XDECREF (result);
   Py_XDECREF (arglist);
   Py_XDECREF (reg_obj);
@@ -761,7 +781,7 @@ python_target::store_registers (struct regcache *regcache, int reg)
   if (!reg_obj)
     goto error;
 
-  arglist = Py_BuildValue ("(O)", reg_obj);
+  arglist = Py_BuildValue ("(OO)", thread, reg_obj);
   if (!arglist)
     goto error;
 
