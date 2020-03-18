@@ -426,8 +426,16 @@ objfpy_is_valid (PyObject *self, PyObject *args)
   Py_RETURN_TRUE;
 }
 
-/* Implementation of gdb.Objfile.add_separate_debug_file (self, string). */
+struct objfile *
+objfpy_object_to_objfile(PyObject *self)
+{
+  objfile_object *obj = (objfile_object *) self;
+  OBJFPY_REQUIRE_VALID(obj);
 
+  return obj->objfile;
+}
+
+/* Implementation of gdb.Objfile.add_separate_debug_file (self, string). */
 static PyObject *
 objfpy_add_separate_debug_file (PyObject *self, PyObject *args, PyObject *kw)
 {
