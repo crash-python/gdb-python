@@ -901,7 +901,8 @@ operator== (const range_bounds &l, const range_bounds &r)
   return (FIELD_EQ (low)
 	  && FIELD_EQ (high)
 	  && FIELD_EQ (flag_upper_bound_is_count)
-	  && FIELD_EQ (flag_bound_evaluated)
+	  && (FIELD_EQ (flag_bound_evaluated) ||
+	      l.high.kind == PROP_UNDEFINED)
 	  && FIELD_EQ (bias));
 
 #undef FIELD_EQ
