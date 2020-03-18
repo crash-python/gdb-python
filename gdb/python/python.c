@@ -1963,6 +1963,7 @@ do_start_initialization ()
       || gdbpy_initialize_record () < 0
       || gdbpy_initialize_btrace () < 0
       || gdbpy_initialize_symbols () < 0
+      || gdbpy_initialize_minsymbols () < 0
       || gdbpy_initialize_symtabs () < 0
       || gdbpy_initialize_blocks () < 0
       || gdbpy_initialize_functions () < 0
@@ -2363,6 +2364,10 @@ Return the static-linkage symbol corresponding to the given name (or None)." },
     METH_VARARGS | METH_KEYWORDS,
     "lookup_static_symbols (name [, domain]) -> symbol\n\
 Return a list of all static-linkage symbols corresponding to the given name." },
+{ "lookup_minimal_symbol", (PyCFunction) gdbpy_lookup_minimal_symbol,
+    METH_VARARGS | METH_KEYWORDS,
+    "lookup_minimal_symbol (name, [sfile, [objfile]]) -> minsym\n\
+Return the symbol corresponding to the given name (or None)." },
 
   { "lookup_objfile", (PyCFunction) gdbpy_lookup_objfile,
     METH_VARARGS | METH_KEYWORDS,

@@ -1,0 +1,59 @@
+# Copyright (C) 2010-2015 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This file is part of the GDB testsuite.  It tests the mechanism
+# exposing values to Python.
+
+load_lib gdb-python.exp
+
+standard_testfile
+
+if {[prepare_for_testing $testfile.exp $testfile $srcfile debug]} {
+    return -1
+}
+
+# Skip all tests if Python scripting is not enabled.
+if { [skip_python_tests] } { continue }
+
+# Test looking up missing value
+gdb_test "python print gdb.lookup_minimal_symbol('xyz')" "None" "lookup missing symbol"
+
+# Test looking up a minimal symbol of text type
+gdb_test "print text_msym" " = \{<text variable, no debug info>\} 0x\[0-9a-f\]* <text_msym>" "locate text_msym with print"
+gdb_py_test_silent_cmd "python x = gdb.lookup_minimal_symbol('text_msym')" "Lookup text_msym" 1
+gdb_test "python print x" "text_msym" "lookup text min sym"
+gdb_test "python print x.name" "text_msym" "get text minsym name"
+gdb_test "python print x.linkage_name" "text_msym" "get text minsym linkage_name"
+# Using asm() ends up inventing a compiler-dependent filename
+gdb_test "python print x.filename" ".*" "get text minsym filename"
+gdb_test "python print x.print_name" "text_msym" "get text minsym print_name"
+gdb_test "python print x.section" ".text" "get text minsym section"
+gdb_test "python print x.value()" "0x\[0-9a-f\]*.*" "get text minsym value"
+gdb_test "python print x.value().type" "void \\(\\*\\)\\(\\)" "get text minsym value type"
+
+# Test looking up a minimal symbol of data type
+gdb_test "print data_msym" " = \[0-9\]*" "locate data_msym with print"
+gdb_py_test_silent_cmd "python x = gdb.lookup_minimal_symbol('data_msym')" "Lookup data_msym" 1
+gdb_test "python print x.name" "data_msym" "get data minsym name"
+gdb_test "python print x.linkage_name" "data_msym" "get data minsym linkage_name"
+# Using asm() ends up inventing a compiler-dependent filename
+gdb_test "python print x.filename" ".*" "get data minsym filename"
+gdb_test "python print x.print_name" "data_msym" "get data minsym print_name"
+gdb_test "python print x.section" ".data" "get data minsym section"
+gdb_test "python print x.value()" "0x\[0-9a-f\]*.*" "get data minsym value"
+
+gdb_unload
+gdb_test "python print (x.is_valid())" "False" "Test symbol non-validity"
+gdb_test_no_output "python a = None" "Test symbol destructor"
