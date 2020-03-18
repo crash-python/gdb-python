@@ -376,8 +376,17 @@ typedef struct
   /* The thread we represent.  */
   struct thread_info *thread;
 
+  /* Regcache */
+  PyObject *regcache;
+
   /* The Inferior object to which this thread belongs.  */
   PyObject *inf_obj;
+
+  /*
+   * Registers associated with this thread.  Python code may hold outstanding
+   * references and we need to be able to mark them invalid.
+   */
+  PyObject *register_objs;
 } thread_object;
 
 struct inferior_object;
@@ -549,6 +558,8 @@ int gdbpy_initialize_arch (void)
 int gdbpy_initialize_xmethods (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 int gdbpy_initialize_unwind (void)
+  CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
+int gdbpy_initialize_register (void)
   CPYCHECKER_NEGATIVE_RESULT_SETS_EXCEPTION;
 
 /* A wrapper for PyErr_Fetch that handles reference counting for the
@@ -774,4 +785,6 @@ struct Py_buffer_deleter
 /* A unique_ptr specialization for Py_buffer.  */
 typedef std::unique_ptr<Py_buffer, Py_buffer_deleter> Py_buffer_up;
 
+PyObject *register_to_register_object (thread_object *thread_obj, int reg);
+void del_thread_registers (thread_object *thread);
 #endif /* PYTHON_PYTHON_INTERNAL_H */

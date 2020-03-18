@@ -18,6 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
+#include "gdbarch.h"
 #include "gdbthread.h"
 #include "inferior.h"
 #include "python-internal.h"
@@ -51,6 +52,7 @@ create_thread_object (struct thread_info *tp)
 
   thread_obj->thread = tp;
   thread_obj->inf_obj = (PyObject *) inf_obj.release ();
+  thread_obj->register_objs = NULL;
 
   return thread_obj;
 }
@@ -58,6 +60,8 @@ create_thread_object (struct thread_info *tp)
 static void
 thpy_dealloc (PyObject *self)
 {
+  del_thread_registers ((thread_object *) self);
+
   Py_DECREF (((thread_object *) self)->inf_obj);
   Py_TYPE (self)->tp_free (self);
 }
@@ -286,6 +290,52 @@ thpy_thread_handle (PyObject *self, PyObject *args)
   return object;
 }
 
+static PyObject *
+thpy_get_registers (PyObject *self, void *closure)
+{
+  thread_object *thread_obj = (thread_object *) self;
+  PyObject *d = NULL;
+
+  THPY_REQUIRE_VALID (thread_obj);
+
+  try
+    {
+      struct gdbarch *gdbarch;
+      int i, numregs;
+      gdbarch = target_gdbarch ();
+      numregs = gdbarch_num_regs (gdbarch);
+
+      d = PyDict_New();
+      for (i = 0; i < numregs; i++)
+	{
+	  PyObject *reg;
+	  const char *name = gdbarch_register_name (gdbarch, i);
+
+	  if (!name || !*name)
+		  continue;
+
+	  reg = register_to_register_object (thread_obj, i);
+	  if (!reg) {
+	    Py_DECREF (d);
+	    return NULL;
+	  }
+
+	  if (PyDict_SetItemString (d, name, reg)) {
+	    Py_DECREF (reg);
+	    Py_DECREF (d);
+	    return NULL;
+	  }
+	}
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+
+    /* Does this leak d? */
+    return PyDictProxy_New(d);
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -344,6 +394,8 @@ static gdb_PyGetSetDef thread_object_getset[] =
     NULL },
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
+  { "registers", thpy_get_registers, NULL, "Registers for this thread.",
+    NULL },
 
   { NULL }
 };

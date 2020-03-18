@@ -1687,7 +1687,8 @@ do_start_initialization ()
       || gdbpy_initialize_event () < 0
       || gdbpy_initialize_arch () < 0
       || gdbpy_initialize_xmethods () < 0
-      || gdbpy_initialize_unwind () < 0)
+      || gdbpy_initialize_unwind () < 0
+      || gdbpy_initialize_register () < 0)
     return false;
 
 #define GDB_PY_DEFINE_EVENT_TYPE(name, py_name, doc, base)	\
