@@ -28,15 +28,18 @@ extern PyTypeObject thread_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("thread_object");
 
 /* Require that INFERIOR be a valid inferior ID.  */
-#define THPY_REQUIRE_VALID(Thread)				\
+#define THPY_REQUIRE_VALID_RET(Thread, ret)			\
   do {								\
     if (!Thread->thread)					\
       {								\
 	PyErr_SetString (PyExc_RuntimeError,			\
 			 _("Thread no longer exists."));	\
-	return NULL;						\
+	return ret;						\
       }								\
   } while (0)
+
+#define THPY_REQUIRE_VALID(Thread)				\
+	THPY_REQUIRE_VALID_RET(Thread, NULL)
 
 gdbpy_ref<thread_object>
 create_thread_object (struct thread_info *tp)
@@ -344,6 +347,49 @@ thpy_get_registers (PyObject *self, void *closure)
     return PyDictProxy_New(d);
 }
 
+static PyObject *
+thpy_get_executing (PyObject *self, void *closure)
+{
+  thread_object *obj = (thread_object *) self;
+  PyObject *ret = Py_False;
+
+  THPY_REQUIRE_VALID(obj);
+
+  if (obj->thread->executing)
+    ret = Py_True;
+
+  Py_INCREF(ret);
+  return ret;
+}
+
+static int
+thpy_set_executing (PyObject *self, PyObject *newvalue, void *ignore)
+{
+  thread_object *thread_obj = (thread_object *) self;
+
+  THPY_REQUIRE_VALID_RET(thread_obj, -1);
+
+  if (!PyBool_Check (newvalue))
+    {
+      PyErr_SetString (PyExc_TypeError, "requires Bool");
+      return -1;
+    }
+
+  try
+    {
+      /*
+       * We do a needless search here, but we can't set
+       * threads_executing directly.
+       */
+      set_executing (thread_obj->thread->ptid, newvalue == Py_True);
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_SET_HANDLE_EXCEPTION (except);
+    }
+  return 0;
+}
+
 /* Return a reference to a new Python object representing a ptid_t.
    The object is a tuple containing (pid, lwp, tid). */
 PyObject *
@@ -403,6 +449,7 @@ static gdb_PyGetSetDef thread_object_getset[] =
   { "inferior", thpy_get_inferior, NULL,
     "The Inferior object this thread belongs to.", NULL },
   { "registers", thpy_get_registers, NULL, "Registers for this thread.", NULL },
+  { "executing", thpy_get_executing, thpy_set_executing, "Execution state of this thread.", NULL },
 
   { NULL }
 };

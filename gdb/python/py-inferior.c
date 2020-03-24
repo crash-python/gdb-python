@@ -75,13 +75,13 @@ extern PyTypeObject membuf_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("membuf_object");
 
 /* Require that INFERIOR be a valid inferior ID.  */
-#define INFPY_REQUIRE_VALID(Inferior)				\
+#define INFPY_REQUIRE_VALID_RET(Inferior, ret)			\
   do {								\
     if (!Inferior->inferior)					\
       {								\
 	PyErr_SetString (PyExc_RuntimeError,			\
 			 _("Inferior no longer exists."));	\
-	return NULL;						\
+	return ret;						\
       }								\
   } while (0)
 
@@ -95,6 +95,9 @@ extern PyTypeObject membuf_object_type
       }                                                                       \
     }                                                                         \
   while (0)
+
+#define INFPY_REQUIRE_VALID(Inferior)				\
+	INFPY_REQUIRE_VALID_RET(Inferior, NULL)
 
 static void
 python_on_normal_stop (struct bpstats *bs, int print_frame)
@@ -556,6 +559,50 @@ infpy_get_progspace (PyObject *self, void *closure)
   gdb_assert (pspace != nullptr);
 
   return pspace_to_pspace_object (pspace).release ();
+}
+
+static PyObject *
+infpy_get_executing (PyObject *self, void *closure)
+{
+  inferior_object *inf = (inferior_object *) self;
+
+  INFPY_REQUIRE_VALID (inf);
+
+  try
+    {
+      target_update_thread_list ();
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+  return PyBool_FromLong(threads_are_executing());
+}
+
+static int
+infpy_set_executing (PyObject *self, PyObject *newvalue, void *ignore)
+{
+  inferior_object *inf = (inferior_object *) self;
+
+  INFPY_REQUIRE_VALID_RET(inf, -1);
+
+  if (!PyBool_Check (newvalue))
+    {
+      PyErr_SetString (PyExc_TypeError, "requires Bool");
+      return -1;
+    }
+
+  try
+    {
+      ptid_t ptid(inf->inferior->pid, 0, 0);
+      set_executing (ptid, newvalue == Py_True);
+    }
+  catch (const gdb_exception &except)
+    {
+      GDB_PY_SET_HANDLE_EXCEPTION (except);
+    }
+
+  return 0;
 }
 
 static int
@@ -1033,6 +1080,8 @@ static gdb_PyGetSetDef inferior_object_getset[] =
   { "was_attached", infpy_get_was_attached, NULL,
     "True if the inferior was created using 'attach'.", NULL },
   { "progspace", infpy_get_progspace, NULL, "Program space of this inferior" },
+  { "executing", infpy_get_executing, infpy_set_executing,
+    "True if there are threads executing." },
   { NULL }
 };
 
