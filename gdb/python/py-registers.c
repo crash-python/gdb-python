@@ -47,17 +47,6 @@ struct register_descriptor_iterator_object {
 extern PyTypeObject register_descriptor_iterator_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("register_descriptor_iterator_object");
 
-/* A register descriptor.  */
-struct register_descriptor_object {
-  PyObject_HEAD
-
-  /* The register this is a descriptor for.  */
-  int regnum;
-
-  /* The architecture this is a register for.  */
-  struct gdbarch *gdbarch;
-};
-
 extern PyTypeObject register_descriptor_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("register_descriptor_object");
 
@@ -154,7 +143,7 @@ gdbpy_reggroup_name (PyObject *self, void *closure)
    each REGNUM (in GDBARCH) only one descriptor is ever created, which is
    then cached on the GDBARCH.  */
 
-static gdbpy_ref<>
+gdbpy_ref<>
 gdbpy_get_register_descriptor (struct gdbarch *gdbarch,
 			       int regnum)
 {

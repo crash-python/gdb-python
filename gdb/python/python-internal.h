@@ -826,6 +826,21 @@ struct Py_buffer_deleter
 /* A unique_ptr specialization for Py_buffer.  */
 typedef std::unique_ptr<Py_buffer, Py_buffer_deleter> Py_buffer_up;
 
+/* A register descriptor.  */
+struct register_descriptor_object {
+  PyObject_HEAD
+
+  /* The register this is a descriptor for.  */
+  int regnum;
+
+  /* The architecture this is a register for.  */
+  struct gdbarch *gdbarch;
+};
+
+gdbpy_ref<> gdbpy_get_register_descriptor (struct gdbarch *gdbarch, int regnum);
+extern PyTypeObject register_descriptor_object_type
+    CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("register_descriptor_object");
+
 /* Parse a register number from PYO_REG_ID and place the register number
    into *REG_NUM.  The register is a register for GDBARCH.
 
