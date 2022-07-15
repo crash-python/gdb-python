@@ -787,6 +787,10 @@ case "${targ}" in
   iq2000-*-elf)
     targ_defvec=iq2000_elf32_vec
     ;;
+  kdumpfile | *-kdumpfile)
+    targ_defvec=kdumpfile_vec
+    targ_archs=
+    ;;
 
   lm32-*-elf | lm32-*-rtems*)
     targ_defvec=lm32_elf32_vec

@@ -967,6 +967,9 @@ extern const bfd_target core_ptrace_vec;
 extern const bfd_target core_sco5_vec;
 extern const bfd_target core_trad_vec;
 
+extern const bfd_target kdumpfile_vec;
+
+
 static const bfd_target * const _bfd_target_vector[] =
 {
 #ifdef SELECT_VECS
@@ -1373,6 +1376,7 @@ static const bfd_target * const _bfd_target_vector[] =
 	&loongarch_elf32_vec,
 	&loongarch_elf64_vec,
 #endif
+	&kdumpfile_vec,
 
 #endif /* not SELECT_VECS */
 
@@ -1428,7 +1432,6 @@ static const bfd_target * const _bfd_target_vector[] =
 #ifdef TRAD_CORE
 	&core_trad_vec,
 #endif
-
 	NULL /* end of list marker */
 };
 const bfd_target *const *const bfd_target_vector = _bfd_target_vector;
@@ -1814,6 +1817,7 @@ bfd_flavour_name (enum bfd_flavour flavour)
     case bfd_target_pef_flavour: return "PEF";
     case bfd_target_pef_xlib_flavour: return "PEF_XLIB";
     case bfd_target_sym_flavour: return "SYM";
+    case bfd_target_kdumpfile_flavour: return "kdumpfile";
     /* There is no "default" case here so that -Wswitch (part of -Wall)
        catches missing entries.  */
     }

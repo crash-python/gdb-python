@@ -55,9 +55,11 @@ endif
 ZLIB = @zlibdir@ -lz
 ZLIBINC = @zlibinc@
 
+KDUMP_CFLAGS = @KDUMP_CFLAGS@
+
 WARN_CFLAGS = @WARN_CFLAGS@
 NO_WERROR = @NO_WERROR@
-AM_CFLAGS = $(WARN_CFLAGS) $(ZLIBINC)
+AM_CFLAGS = $(WARN_CFLAGS) $(ZLIBINC) $(KDUMP_CFLAGS)
 AM_CPPFLAGS = -DBINDIR='"$(bindir)"' -DLIBDIR='"$(libdir)"' @LARGEFILE_CPPFLAGS@
 if PLUGINS
 bfdinclude_HEADERS += $(INCDIR)/plugin-api.h
@@ -577,6 +579,7 @@ BFD64_BACKENDS = \
 	elfxx-x86.lo \
 	elf64-bpf.lo \
 	elf64.lo \
+	kdumpfile.lo \
 	mach-o-aarch64.lo \
 	mach-o-x86-64.lo \
 	mmo.lo \
@@ -620,6 +623,7 @@ BFD64_BACKENDS_CFILES = \
 	elfxx-loongarch.c \
 	elfxx-mips.c \
 	elfxx-riscv.c \
+	kdumpfile.c \
 	mach-o-aarch64.c \
 	mach-o-x86-64.c \
 	mmo.c \

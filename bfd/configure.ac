@@ -334,6 +334,19 @@ AC_SUBST(SHARED_LDFLAGS)
 AC_SUBST(SHARED_LIBADD)
 
 # target stuff:
+AC_ARG_WITH(kdumpfile,
+[  --with-kdumpfile             enable kdumpfile target ],
+[case "${withval}" in
+  yes)  want_kdumpfile=true ;;
+  no)   want_kdumpfile=false ;;
+  *)    AC_MSG_ERROR(bad value ${withval} for BFD with-kdumpfile option) ;;
+esac],[want_kdumpfile=false])dnl
+
+if test "$want_kdumpfile" = "true"; then
+	PKG_CHECK_MODULES([KDUMP], [libkdumpfile libaddrxlat], [], [])
+	AC_SUBST(KDUMP_CFLAGS)
+	canon_targets="$canon_targets kdumpfile"
+fi
 
 # Canonicalize the secondary target names.
 if test -n "$enable_targets" ; then
@@ -523,6 +536,7 @@ do
     ia64_pei_vec)		 tb="$tb pei-ia64.lo pepigen.lo $coff"; target_size=64 ;;
     ip2k_elf32_vec)		 tb="$tb elf32-ip2k.lo elf32.lo $elf" ;;
     iq2000_elf32_vec)		 tb="$tb elf32-iq2000.lo elf32.lo $elf" ;;
+    kdumpfile_vec)		 tb="$tb kdumpfile.lo" ;;
     k1om_elf64_vec)		 tb="$tb elf64-x86-64.lo elfxx-x86.lo elf-ifunc.lo elf64.lo $elf"; target_size=64 ;;
     k1om_elf64_fbsd_vec)	 tb="$tb elf64-x86-64.lo elfxx-x86.lo elf-ifunc.lo elf64.lo $elf"; target_size=64 ;;
     l1om_elf64_vec)		 tb="$tb elf64-x86-64.lo elfxx-x86.lo elf-ifunc.lo elf64.lo $elf"; target_size=64 ;;
@@ -1067,6 +1081,7 @@ if test -n "$TRAD_HEADER"; then
   AC_DEFINE_UNQUOTED(TRAD_HEADER, $TRAD_HEADER,
     [Name of host specific header file to include in trad-core.c.])
 fi
+
 
 if test "$plugins" = "yes"; then
   supports_plugins=1
