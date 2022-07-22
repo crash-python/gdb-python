@@ -408,6 +408,7 @@ SUBDIR_PYTHON_SRCS = \
 	python/py-instruction.c \
 	python/py-lazy-string.c \
 	python/py-linetable.c \
+	python/py-lktarget.c \
 	python/py-membuf.c \
 	python/py-micmd.c \
 	python/py-minsymbol.c \

@@ -259,3 +259,15 @@ class Target(_gdb.Target):
     def open(self, argstring: str, from_tty: bool) -> None:
         self.prepare_open(from_tty)
         self.push_target()
+
+class LinuxKernelTarget(_gdb.LinuxKernelTarget):
+    def open(self, argstring: str = "", from_tty: bool = True) -> None:
+        self.prepare_open(from_tty)
+        self._check_underlying_target()
+        self._relocate_kernel()
+
+        self.push_target()
+
+        self._finish_initial_setup()
+
+        self.update_thread_list()
