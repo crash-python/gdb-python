@@ -1071,8 +1071,43 @@ typy_str (PyObject *self)
 			   host_charset (), NULL);
 }
 
-/* Implement the richcompare method.  */
+static PyObject *
+typy_deeply_equal (PyObject *self, PyObject *other)
+{
+  bool result = false;
+  struct type *type1 = type_object_to_type (self);
+  struct type *type2 = type_object_to_type (other);
 
+  /* We can only compare ourselves to another Type object, and only
+     for equality or inequality.  */
+  if (type2 == NULL)
+    {
+      PyErr_Format (PyExc_TypeError, "Argument must be a gdb.Type object");
+      return NULL;
+    }
+
+  if (type1 == type2)
+    result = true;
+  else
+    {
+      try
+	{
+	  result = types_deeply_equal (type1, type2);
+	}
+      catch (const gdb_exception &except)
+	{
+	  /* If there is a GDB exception, a comparison is not capable
+	     (or trusted), so exit.  */
+	  GDB_PY_HANDLE_EXCEPTION (except);
+	}
+    }
+
+  if (result)
+    Py_RETURN_TRUE;
+  Py_RETURN_FALSE;
+}
+
+/* Implement the richcompare method.  */
 static PyObject *
 typy_richcompare (PyObject *self, PyObject *other, int op)
 {
@@ -1094,7 +1129,7 @@ typy_richcompare (PyObject *self, PyObject *other, int op)
     {
       try
 	{
-	  result = types_deeply_equal (type1, type2);
+	  result = types_equal (type1, type2);
 	}
       catch (const gdb_exception &except)
 	{
@@ -1603,6 +1638,9 @@ Each field is a gdb.Field object." },
   { "volatile", typy_volatile, METH_NOARGS,
     "volatile () -> Type\n\
 Return a volatile variant of this type" },
+  { "is_deeply_equal", typy_deeply_equal, METH_VARARGS,
+    "is_deeply_equal (Type) -> bool\n\
+Deeply compare another Type including member structures and pointer types" },
   { NULL }
 };
 
